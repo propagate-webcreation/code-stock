@@ -1,5 +1,14 @@
 @import "tailwindcss";
 @import "tw-animate-css";
+/* 🚨 重要: フォントCSSはここにインポートしない */
+/* layout.tsx でインポートすることで全ページに適用される */
+
+@theme {
+  /* フォントファミリーの定義 */
+  --font-family-display: var(--font-display);
+  --font-family-body: var(--font-body);
+  --font-family-sans: var(--font-body);
+}
 
 /* カスタムフォントユーティリティクラス */
 @utility font-display {

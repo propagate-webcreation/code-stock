@@ -65,10 +65,40 @@ function main() {
   
   // 既存のglobals.cssを読み込む
   let cssContent = fs.readFileSync(globalsPath, 'utf8');
+  const originalContent = cssContent;
+  
+  log('\n[2] 重複インポートの確認...', 'blue');
+  
+  // 🚨 CRITICAL: フォントCSSの重複インポートを検出・削除
+  const hasActiveCss = cssContent.includes('@import "../lib/fonts/_active.css"') || 
+                       cssContent.includes("@import '../lib/fonts/_active.css'");
+  const hasVarsCss = cssContent.includes('@import "../lib/fonts/_vars.css"') || 
+                     cssContent.includes("@import '../lib/fonts/_vars.css'");
+  
+  if (hasActiveCss || hasVarsCss) {
+    logWarning('⚠️  重複インポートを検出しました！');
+    logInfo('globals.css からフォントCSSのインポートを削除します...');
+    logInfo('理由: layout.tsx でインポートすることで全ページに適用されます');
+    
+    // 重複インポートを削除
+    cssContent = cssContent.replace(/@import\s+["']\.\.\/lib\/fonts\/_active\.css["'];?\s*\n?/g, '');
+    cssContent = cssContent.replace(/@import\s+["']\.\.\/lib\/fonts\/_vars\.css["'];?\s*\n?/g, '');
+    
+    logSuccess('重複インポートを削除しました');
+  } else {
+    logSuccess('重複インポートはありません');
+  }
   
   // すでに設定済みかチェック
-  if (cssContent.includes('@utility font-display')) {
-    logSuccess('カスタムユーティリティクラスは既に設定済みです');
+  if (cssContent.includes('@utility font-display') && cssContent.includes('@theme')) {
+    logSuccess('カスタムユーティリティクラスと@theme定義は既に設定済みです');
+    
+    if (cssContent !== originalContent) {
+      // 重複削除のみ実行した場合
+      fs.writeFileSync(globalsPath, cssContent, 'utf8');
+      logSuccess('globals.css を更新しました');
+    }
+    
     log('\n次は以下のコマンドでフォントを選択してください:', 'cyan');
     log('  npm run setup-fonts:kawaii    # かわいい', 'cyan');
     log('  npm run setup-fonts:elegant   # 上品・高級感', 'cyan');
@@ -80,21 +110,37 @@ function main() {
     return;
   }
   
-  log('\n[2] カスタムユーティリティクラスを追加中...', 'blue');
+  log('\n[3] @theme定義とユーティリティクラスを追加中...', 'blue');
   
-  // フォントユーティリティクラスを追加
-  const fontUtilities = `
+  // @theme定義を追加（存在しない場合）
+  if (!cssContent.includes('@theme')) {
+    const themeDefinition = `
+@theme {
+  /* フォントファミリーの定義 */
+  --font-family-display: var(--font-display);
+  --font-family-body: var(--font-body);
+  --font-family-sans: var(--font-body);
+}
+`;
+    cssContent += themeDefinition;
+    logSuccess('@theme定義を追加しました');
+  }
+  
+  // フォントユーティリティクラスを追加（存在しない場合）
+  if (!cssContent.includes('@utility font-display')) {
+    const fontUtilities = `
 /* カスタムフォントユーティリティクラス */
 @utility font-display {
-  font-family: var(--font-display);
+  font-family: var(--font-display, var(--font-geist-sans), sans-serif);
 }
 
 @utility font-body {
-  font-family: var(--font-body);
+  font-family: var(--font-body, var(--font-geist-sans), sans-serif);
 }
 `;
-  
-  cssContent += fontUtilities;
+    cssContent += fontUtilities;
+    logSuccess('ユーティリティクラスを追加しました');
+  }
   
   // globals.cssに書き込む
   fs.writeFileSync(globalsPath, cssContent, 'utf8');
@@ -127,4 +173,3 @@ process.on('uncaughtException', (error) => {
 
 // 実行
 main();
-

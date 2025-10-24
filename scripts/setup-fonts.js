@@ -337,6 +337,12 @@ function updateGlobalCSS() {
   let cssContent = fs.readFileSync(globalCSSPath, 'utf8');
   const originalContent = cssContent;
   
+  // 🚨 CRITICAL: フォントCSSの重複インポートを削除（複数ページ対応）
+  // 理由: layout.tsx でのインポートがすべてのページに適用されるため、
+  // globals.css での重複インポートは CSS 読み込み順序を不安定にする
+  cssContent = cssContent.replace(/@import\s+["']\.\.\/lib\/fonts\/_active\.css["'];?\s*\n?/g, '');
+  cssContent = cssContent.replace(/@import\s+["']\.\.\/lib\/fonts\/_vars\.css["'];?\s*\n?/g, '');
+  
   // @theme 定義が既に存在するか確認
   if (!cssContent.includes('@theme')) {
     // ファイル末尾に @theme を追加
@@ -345,7 +351,7 @@ function updateGlobalCSS() {
   
   if (cssContent !== originalContent) {
     fs.writeFileSync(globalCSSPath, cssContent, 'utf8');
-    logSuccess('globals.css を更新しました');
+    logSuccess('globals.css を更新しました（重複インポートを削除）');
   } else {
     logSuccess('globals.css は既に正しい状態です');
   }
@@ -489,4 +495,3 @@ process.on('uncaughtException', (error) => {
 
 // 実行
 main();
-

@@ -160,7 +160,7 @@ workflow:
       
       kawaii:
         prompt: |
-かわいいフォントですね！
+          かわいいフォントですね！
           まず、見出し用フォントを選んでください：
           
           1. zen-maru: Zen Maru Gothic（丸ゴシック）- やわらかい印象
@@ -716,12 +716,97 @@ troubleshooting:
       - triggers.keywords を確認
       - ユーザーの入力にトリガーキーワードが含まれているか確認
       - 含まれていれば必ずこのワークフローを実行すること
+  
+  issue_4:
+    problem: "複数ページのサイトでフォントが変更できない（1ページ構成では動作する）"
+    symptom: |
+      - 1ページ構成のサイトではフォントが正しく適用される
+      - 複数ページ構成（/home, /products, /story など）ではフォントが反映されない
+      - setup-fonts.js を実行してもフォントが変わらない
+    root_cause: |
+      🚨 フォントCSSの重複インポートが原因
+      
+      問題のあるパターン：
+      1. app/layout.tsx で：
+         import "../lib/fonts/_active.css";
+         import "../lib/fonts/_vars.css";
+      
+      2. app/globals.css で：
+         @import "../lib/fonts/_active.css";
+         @import "../lib/fonts/_vars.css";
+      
+      なぜ1ページでは動き、複数ページでは動かないのか？
+      - 1ページ構成：シンプルな構造のため、重複インポートでも読み込み順序が安定
+      - 複数ページ構成：各ページで異なるコンポーネントツリーがあり、
+        CSS読み込み順序が不安定になり、フォント変数（--font-display, --font-body）が
+        正しく適用されない
+      
+      技術的詳細：
+      - Tailwind CSS v4 の @import "tailwindcss" の後に他の @import を使用すると、
+        読み込み順序が不安定になる
+      - CSS変数が複数回定義されると、最後に読み込まれたものが適用されるが、
+        複数ページの場合はページごとに読み込み順序が異なる可能性がある
+      - Next.jsのルートレイアウトはすべてのページに適用されるべきだが、
+        globals.cssでの重複インポートがこれを妨げる
+    
+    solution: |
+      ✅ 解決方法（必ずこの順序で実行）：
+      
+      1. app/globals.css を開く
+      
+      2. 以下の2行を削除：
+         @import "../lib/fonts/_active.css";
+         @import "../lib/fonts/_vars.css";
+      
+      3. app/layout.tsx のインポートは残す（削除しない）：
+         import "../lib/fonts/_active.css";  // ← これは残す
+         import "../lib/fonts/_vars.css";     // ← これは残す
+      
+      4. 理由：
+         - layout.tsx でのインポート → すべてのページに確実に適用される
+         - globals.css での重複インポート → 削除することで読み込み順序を安定化
+      
+      5. 確認方法：
+         - npm run dev でサーバー再起動
+         - 複数のページ（/home, /products など）を開く
+         - 開発者ツールで computed styles を確認
+         - font-family が正しく適用されていることを確認
+    
+    prevention: |
+      🔒 予防策（プロジェクト作成時に必ず確認）：
+      
+      1. setup-fonts.js の updateGlobalCSS() 関数を修正：
+         - フォントCSSの @import を追加しないようにする
+         - @theme 定義のみを追加する
+      
+      2. プロジェクトテンプレートのチェックリスト：
+         ✓ app/layout.tsx にフォントCSSをインポート
+         ✗ app/globals.css にフォントCSSを重複インポートしない
+         ✓ app/globals.css には @theme 定義のみ含める
+      
+      3. setup-fonts.js 実行後の確認：
+         - app/globals.css に @import "../lib/fonts/_active.css" がないことを確認
+         - app/layout.tsx に import "../lib/fonts/_active.css" があることを確認
+    
+    related_files:
+      - "app/globals.css"
+      - "app/layout.tsx"
+      - "lib/fonts/_active.css"
+      - "lib/fonts/_vars.css"
+      - "scripts/setup-fonts.js"
 
 # ==============================================================================
 # バージョン履歴
 # ==============================================================================
 
 changelog:
+  v3.1:
+    date: "2025-10-24"
+    changes:
+      - "複数ページサイトでのフォント適用問題のトラブルシューティングを追加（issue_4）"
+      - "フォントCSS重複インポートの問題と解決方法を詳細に記録"
+      - "予防策とチェックリストを追加"
+  
   v3.0:
     date: "2025-10-16"
     changes:
