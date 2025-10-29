@@ -90,10 +90,22 @@ function main() {
   }
   
   // すでに設定済みかチェック
-  if (cssContent.includes('@utility font-display') && cssContent.includes('@theme')) {
-    logSuccess('カスタムユーティリティクラスと@theme定義は既に設定済みです');
+  if (cssContent.includes(':root') && cssContent.includes('@theme')) {
+    logSuccess(':root セクションと @theme 定義は既に設定済みです');
     
-    if (cssContent !== originalContent) {
+    // 🚨 旧形式の @utility を検出して削除
+    if (cssContent.includes('@utility font-display') || cssContent.includes('@utility font-body')) {
+      logWarning('⚠️  旧形式の @utility を検出しました');
+      logInfo('Tailwind CSS v4 対応のため、@utility を削除します...');
+      
+      // @utility セクションを削除
+      cssContent = cssContent.replace(/@utility\s+font-display\s*\{[^}]*\}\s*/g, '');
+      cssContent = cssContent.replace(/@utility\s+font-body\s*\{[^}]*\}\s*/g, '');
+      cssContent = cssContent.replace(/\/\*\s*カスタムフォントユーティリティクラス\s*\*\/\s*/g, '');
+      
+      fs.writeFileSync(globalsPath, cssContent, 'utf8');
+      logSuccess('@utility を削除しました');
+    } else if (cssContent !== originalContent) {
       // 重複削除のみ実行した場合
       fs.writeFileSync(globalsPath, cssContent, 'utf8');
       logSuccess('globals.css を更新しました');
@@ -110,7 +122,25 @@ function main() {
     return;
   }
   
-  log('\n[3] @theme定義とユーティリティクラスを追加中...', 'blue');
+  log('\n[3] :root セクションと @theme 定義を追加中...', 'blue');
+  
+  // 🆕 :root セクションを追加（存在しない場合）
+  // CRITICAL: @import より前に配置することで、Tailwind CSS v4 との互換性を保つ
+  if (!cssContent.includes(':root')) {
+    const rootSection = `:root {
+  --font-display: "Noto Sans JP", sans-serif;
+  --font-body: "Noto Sans JP", sans-serif;
+}
+
+`;
+    // @import の前に :root を配置
+    if (cssContent.includes('@import')) {
+      cssContent = rootSection + cssContent;
+    } else {
+      cssContent = rootSection + '\n' + cssContent;
+    }
+    logSuccess(':root セクションを追加しました（デフォルト値）');
+  }
   
   // @theme定義を追加（存在しない場合）
   if (!cssContent.includes('@theme')) {
@@ -126,21 +156,20 @@ function main() {
     logSuccess('@theme定義を追加しました');
   }
   
-  // フォントユーティリティクラスを追加（存在しない場合）
-  if (!cssContent.includes('@utility font-display')) {
-    const fontUtilities = `
-/* カスタムフォントユーティリティクラス */
-@utility font-display {
-  font-family: var(--font-display, var(--font-geist-sans), sans-serif);
-}
-
-@utility font-body {
-  font-family: var(--font-body, var(--font-geist-sans), sans-serif);
+  // 見出しタグに font-family を直接適用（存在しない場合）
+  if (!cssContent.includes('h1, h2, h3, h4, h5, h6')) {
+    const headingStyles = `
+/* 見出しに表示用フォントを適用 */
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-display);
 }
 `;
-    cssContent += fontUtilities;
-    logSuccess('ユーティリティクラスを追加しました');
+    cssContent += headingStyles;
+    logSuccess('見出しタグにフォント設定を追加しました');
   }
+  
+  // ⚠️ @utility は使用しない（Tailwind CSS v4 との互換性問題を回避）
+  // 代わりに @theme と見出しタグへの直接適用を使用
   
   // globals.cssに書き込む
   fs.writeFileSync(globalsPath, cssContent, 'utf8');
@@ -173,3 +202,4 @@ process.on('uncaughtException', (error) => {
 
 // 実行
 main();
+

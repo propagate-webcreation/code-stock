@@ -324,7 +324,7 @@ function updateLayout() {
 }
 
 // globals.css を更新
-function updateGlobalCSS() {
+function updateGlobalCSS(displayInfo, bodyInfo) {
   logStep('8', 'app/globals.css を更新中...');
   
   const globalCSSPath = path.join(rootDir, 'app', 'globals.css');
@@ -343,6 +343,27 @@ function updateGlobalCSS() {
   cssContent = cssContent.replace(/@import\s+["']\.\.\/lib\/fonts\/_active\.css["'];?\s*\n?/g, '');
   cssContent = cssContent.replace(/@import\s+["']\.\.\/lib\/fonts\/_vars\.css["'];?\s*\n?/g, '');
   
+  // 🆕 CRITICAL: :root セクションを自動更新（複数ページでのフォント適用問題を解決）
+  // globals.css の :root で CSS変数を直接定義することで、
+  // Tailwind CSS v4 との互換性を保ち、読み込み順序の問題を解決
+  const newRootSection = `:root {
+  --font-display: "${displayInfo.family}", serif;
+  --font-body: "${bodyInfo.family}", sans-serif;
+}`;
+  
+  // 既存の :root セクションを検出・置換
+  const rootPattern = /:root\s*\{[^}]*\}/s;
+  
+  if (rootPattern.test(cssContent)) {
+    // 既存の :root を置換
+    cssContent = cssContent.replace(rootPattern, newRootSection);
+    logSuccess(':root セクションを更新しました');
+  } else {
+    // :root が存在しない場合は先頭に追加（@import より前に配置）
+    cssContent = newRootSection + '\n\n' + cssContent;
+    logSuccess(':root セクションを追加しました');
+  }
+  
   // @theme 定義が既に存在するか確認
   if (!cssContent.includes('@theme')) {
     // ファイル末尾に @theme を追加
@@ -351,7 +372,7 @@ function updateGlobalCSS() {
   
   if (cssContent !== originalContent) {
     fs.writeFileSync(globalCSSPath, cssContent, 'utf8');
-    logSuccess('globals.css を更新しました（重複インポートを削除）');
+    logSuccess('globals.css を更新しました');
   } else {
     logSuccess('globals.css は既に正しい状態です');
   }
@@ -474,17 +495,32 @@ function main() {
   // layout.tsx を更新
   updateLayout();
   
-  // globals.css を更新
-  updateGlobalCSS();
+  // globals.css を更新（フォント情報を渡す）
+  updateGlobalCSS(displayInfo, bodyInfo);
   
   log('\n╔════════════════════════════════════════╗', 'green');
   log('║  ✓ セットアップ完了！                 ║', 'green');
   log('╚════════════════════════════════════════╝', 'green');
   
-  log('\n次のステップ:', 'bright');
-  log('  1. npm run dev でサーバーを起動');
-  log('  2. ブラウザで http://localhost:3000 を開く');
-  log('  3. 開発者ツールでフォントが適用されているか確認\n');
+  log('\n設定内容:', 'bright');
+  log(`  見出しフォント: ${displayInfo.family}`, 'cyan');
+  log(`  本文フォント: ${bodyInfo.family}`, 'cyan');
+  
+  log('\n📋 次のステップ（重要）:', 'bright');
+  log('  1. 開発サーバーを再起動してください:', 'yellow');
+  log('     • ターミナルで Ctrl+C を押してサーバーを停止', 'yellow');
+  log('     • npm run dev で再起動', 'yellow');
+  log('', 'reset');
+  log('  2. ブラウザでハードリロードしてください:', 'yellow');
+  log('     • Mac: Cmd + Shift + R', 'yellow');
+  log('     • Windows/Linux: Ctrl + Shift + F5', 'yellow');
+  log('', 'reset');
+  log('  3. 開発者ツールでフォントを確認:', 'cyan');
+  log('     • F12 → Elements → body要素 → Computed → font-family', 'cyan');
+  log('', 'reset');
+  
+  log('💡 ヒント: フォントが反映されない場合は、memories/font_workflow.yaml の', 'blue');
+  log('   トラブルシューティングセクション（issue_4）を参照してください\n', 'blue');
 }
 
 // エラーハンドリング
@@ -495,3 +531,4 @@ process.on('uncaughtException', (error) => {
 
 // 実行
 main();
+

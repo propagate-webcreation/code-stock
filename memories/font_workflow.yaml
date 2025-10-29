@@ -482,12 +482,132 @@ workflow:
       - 見出し: {display_font_name}
       - 本文: {body_font_name}
       
-      次のステップ:
-      1. npm run dev でサーバーを起動（既に起動している場合はリロード）
-      2. ブラウザで http://localhost:3000 を開いて確認
+      📋 次のステップ（必須）:
+      1. 開発サーバーを再起動してください（Ctrl+C → npm run dev）
+      2. ブラウザでハードリロード（Mac: Cmd+Shift+R / Win: Ctrl+Shift+F5）
+      3. ブラウザで http://localhost:3000 を開いて確認
       
-      フォントが気に入らない場合は、いつでも別のフォントに変更できます。
+      ⚠️ 重要: 次のステップ6（再発防止チェックリスト）を必ず実行してください。
+      複数ページでの問題を未然に防ぐための必須チェックです。
+      
+      💡 フォントが気に入らない場合は、いつでも別のフォントに変更できます。
       「フォント変更」と言っていただければ、再度選択できます。
+    
+    next_step: "step_6"
+  
+  # ============================================================================
+  # STEP 6: 再発防止チェック（新規追加）
+  # ============================================================================
+  
+  step_6:
+    name: "再発防止チェックリスト"
+    status: MANDATORY
+    skip_allowed: false
+    
+    action: |
+      複数ページでのフォント適用問題を未然に防ぐため、
+      以下の項目を必ず確認してください（MANDATORY）
+    
+    checklist:
+      
+      check_1:
+        name: "globals.css の :root セクション確認"
+        verification: |
+          app/globals.css を開いて、以下が存在することを確認：
+          
+          :root {
+            --font-display: "フォント名", serif;
+            --font-body: "フォント名", sans-serif;
+          }
+        
+        status: |
+          ✅ setup-fonts.js が自動的に追加・更新します
+          確認のみで問題ありません
+        
+        action_if_missing: |
+          再度 npm run setup-fonts:xxx を実行してください
+      
+      check_2:
+        name: "@utility の不使用確認"
+        verification: |
+          globals.css に以下が存在しないことを確認：
+          
+          @utility font-display { ... }
+          @utility font-body { ... }
+        
+        reason: |
+          Tailwind CSS v4 では @utility の動作が不安定です
+          @theme のみを使用してください
+        
+        action_if_exists: |
+          npm run setup-font-project を実行すると自動削除されます
+          または手動で削除してください
+      
+      check_3:
+        name: "重複インポートの不存在確認"
+        verification: |
+          globals.css に以下が存在しないことを確認：
+          
+          @import "../lib/fonts/_active.css";
+          @import "../lib/fonts/_vars.css";
+        
+        reason: |
+          layout.tsx でインポートするため、globals.css での重複は
+          CSS読み込み順序を不安定にします（複数ページ問題の原因）
+        
+        status: |
+          ✅ setup-fonts.js が自動的に削除します
+        
+        action_if_exists: |
+          手動で削除してください
+      
+      check_4:
+        name: "layout.tsx の body クラス確認"
+        verification: |
+          app/layout.tsx を開いて、以下になっているか確認：
+          
+          <body className="antialiased font-sans">
+        
+        note: |
+          font-body ではなく font-sans を使用します
+          （Tailwind CSS v4 標準）
+        
+        action_if_wrong: |
+          className を "antialiased font-sans" に変更してください
+      
+      check_5:
+        name: "開発サーバー完全再起動"
+        verification: |
+          以下の手順で再起動してください：
+          
+          1. Ctrl+C でサーバー停止
+          2. npm run dev で再起動
+        
+        reason: |
+          ホットリロードでは反映されない場合があります
+          必ず完全再起動してください
+        
+        alternative: |
+          ポートが使用中の場合：
+          kill -9 $(lsof -ti:3000) 2>/dev/null || true
+          npm run dev
+      
+      check_6:
+        name: "ブラウザハードリロード"
+        verification: |
+          Mac: Cmd + Shift + R
+          Windows/Linux: Ctrl + Shift + F5
+        
+        reason: |
+          フォントファイルのキャッシュをクリアします
+        
+        advanced: |
+          開発者ツール → Network タブ → Disable cache にチェック
+    
+    troubleshooting_reference: |
+      詳細なトラブルシューティングは以下を参照：
+      - memories/font_workflow.yaml の issue_4
+      - font_not_applied_issue.yaml
 
 # ==============================================================================
 # フォント設定マッピング（参照用）
