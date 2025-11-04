@@ -1,5 +1,5 @@
 # =============================================================================
-# Google提出 自動化ワークフロー（v1.4.0）
+# Google提出 自動化ワークフロー（v2.1.0）
 # =============================================================================
 # 目的: Google Search Console への提出に必要な設定を自動化
 #
@@ -8,25 +8,25 @@
 # 最終更新: 2025-11-04
 # =============================================================================
 
-schema_version: "1.4.0"
+schema_version: "2.1.0"
 
 metadata:
   workflow_name: "Google提出 自動化"
   target_framework: "Next.js 13+ (App Router)"
   enforcement: "MANDATORY"
-  version: "1.4.0"
+  version: "2.1.0"
   created: "2025-11-04"
   updated: "2025-11-04"
   author: "DefaultSetting Project"
   description: |
     Google提出に必要な5つのタスクを完全自動化：
-    1. altタグ設定（包括的検出 + コンテキスト分析で自動生成）
-    2. metadata 設定（title, description, keywords, openGraph, twitter）
+    1. altタグ設定（multiline対応 + 品質チェック&自動改善）
+    2. metadata 設定（市場分析 + SEO最適化）
     3. sitemap.ts 作成（外部URL混入防止）
-    4. robots.txt 作成
-    5. URLスラッグ最適化（サイト内容を分析して提案）
+    4. robots.txt 作成（重要設定）
+    5. URLスラッグ最適化（サイト内容分析）
     
-    v1.4.0: すべてのワークフローで「どう読み込むか」を明示し、AIが確実に実行できるよう改善
+    v2.1.0: multiline モード対応と品質チェック&自動改善機能を追加
 
 # =============================================================================
 # トリガー設定
@@ -56,173 +56,123 @@ triggers:
 workflow_1_alt_tags:
   
   name: "画像の alt 属性を自動設定"
-  description: "AIが画像のコンテキストを分析して、適切な alt 属性を自動設定"
   
-  process:
-    step_1:
-      action: "画像の使用状況を包括的に検出"
-      
-      method:
-        description: "複数の検索パターンで画像使用を網羅的に検出"
-        
-        search_patterns:
-          pattern_1:
-            name: "Image コンポーネント"
-            tool: "grep"
-            pattern: "Image"
-            targets: ["app/**/*.tsx", "app/components/**/*.tsx"]
-            context: "-B 3 -A 3"
-            note: "改行されている場合も検出"
-          
-          pattern_2:
-            name: "img タグ"
-            tool: "grep"
-            pattern: "img"
-            targets: ["app/**/*.tsx", "app/components/**/*.tsx"]
-            context: "-B 3 -A 3"
-            note: "HTML標準のimgタグ"
-          
-          pattern_3:
-            name: "画像パス参照"
-            tool: "grep"
-            pattern: '"/img/'
-            targets: ["app/**/*.tsx", "app/components/**/*.tsx"]
-            context: "-B 3 -A 3"
-            note: "すべての /img/ 参照を検出（CSS背景画像含む）"
-          
-          pattern_4:
-            name: "CSS背景画像"
-            tool: "grep"
-            pattern: "bg-\\[url|background-image|backgroundImage"
-            targets: ["app/**/*.tsx", "app/components/**/*.tsx", "app/globals.css"]
-            context: "-B 3 -A 3"
-            note: "Tailwind bg-[url(...)] と通常CSS の両方"
-        
-        comprehensive_check:
-          description: |
-            上記4つのパターンで検索し、すべての画像使用箇所を検出。
-            検出結果を統合して、重複を除外。
-      
-      detection_logic:
-        for_image_tags:
-          description: "<Image> と <img> タグの検出"
-          check: "alt 属性の有無を確認"
-          action: "alt がない場合のみリストアップ"
-        
-        for_css_background:
-          description: "CSS背景画像の検出"
-          note: |
-            🚨 重要: CSS背景画像には alt 属性を設定できません。
-            装飾的な画像として扱い、代替テキストが必要な場合は：
-            - aria-label 属性を親要素に追加
-            - または、画像の説明テキストを近くに配置
-          
-          action: "検出のみ（実装はスキップ）"
-          report: "装飾的な背景画像として使用されていることを報告"
+  description: |
+    サイト内のすべての画像（<Image>, <img>, CSS背景画像）を検出し、
+    alt 属性がないものに対して、コンテキストを分析して適切な alt テキストを自動生成・設定する。
+  
+  instructions: |
+    1. app/ と app/components/ 内のすべての .tsx ファイルをサイトを見て確認
     
-    step_2:
-      action: "各画像ファイルを read_file で読み込み、コンテキストを分析"
-      
-      analysis_materials:
-        1_filename:
-          source: "画像の src 属性"
-          examples:
-            - "logo.png → ロゴ"
-            - "hero-bg.jpg → メインビジュアル"
-            - "office.jpg → オフィス"
-            - "team.png → チーム"
-        
-        2_context:
-          source: "画像の周辺コード（前後2行）"
-          examples:
-            - "<section className='hero'> → ヒーローセクション"
-            - "<h1>会社概要</h1> の後 → 会社概要関連"
-            - "<header> 内 → ヘッダー"
-            - "<footer> 内 → フッター"
-        
-        3_classname:
-          source: "画像タグの className"
-          examples:
-            - "className='company-logo' → 会社のロゴ"
-            - "className='service-icon' → サービスアイコン"
-        
-        4_company_info:
-          source: "about.yaml の site.name（可能な場合）"
-          usage: "会社名を含める（例: 株式会社〇〇のロゴ）"
-        
-        5_surrounding_text:
-          source: "画像の前後のテキストノード"
-          examples:
-            - "<p>東京オフィス</p><Image src='...' /> → 東京オフィス"
-            - "<h2>サービス紹介</h2> の下 → サービス関連"
+    2. 画像を検出（🚨 重要: multiline モード使用）
+       - grep で "Image" を検索（multiline: true を指定）
+       - grep で "img" を検索（multiline: true を指定）
+       - 複数行にまたがる Image タグも検出できるようにする
+       - 検出したファイルを read_file で読み込んで内容を確認
     
-    step_3:
-      action: "alt テキストを自動生成"
-      
-      generation_algorithm: |
-        1. ファイル名を解析（logo, hero, office など）
-        2. 周辺コンテキストを解析（hero セクション、header など）
-        3. className を解析（company-logo など）
-        4. about.yaml から会社名を取得（可能な場合）
-        5. 上記を組み合わせて最適な alt テキストを生成
-      
-      generation_rules:
-        - "ファイル名の意味を日本語化（logo → ロゴ）"
-        - "コンテキストを考慮（hero セクション内 → 〇〇のメインビジュアル）"
-        - "会社名/サービス名を含める（可能な場合）"
-        - "簡潔で具体的な説明（15字以内推奨）"
-        - "「画像」「写真」などの冗長な語は避ける"
-      
-      examples:
-        example_1:
-          image: '<Image src="/logo.png" />'
-          context: '<header> 内'
-          filename: "logo.png"
-          company_name: "株式会社メディアプルーフ"
-          generated_alt: "株式会社メディアプルーフのロゴ"
-        
-        example_2:
-          image: '<Image src="/hero-bg.jpg" />'
-          context: '<section className="hero">'
-          filename: "hero-bg.jpg"
-          service: "校閲サービス"
-          generated_alt: "校閲サービスのメインビジュアル"
-        
-        example_3:
-          image: '<img src="/office.jpg" />'
-          context: '<p>東京オフィス</p> の下'
-          filename: "office.jpg"
-          surrounding_text: "東京オフィス"
-          generated_alt: "東京オフィスの外観"
-        
-        example_4:
-          image: '<Image src="/icon-service.svg" className="service-icon" />'
-          context: '<section> サービス紹介'
-          filename: "icon-service.svg"
-          classname: "service-icon"
-          generated_alt: "サービスアイコン"
+    3. 各画像の alt 属性を確認
+       - alt 属性がない → 生成して追加
+       - alt 属性が不適切（"画像", "写真", "test", "sample" など） → 改善して修正
+       
+       生成ルール:
+       - ファイル名、周辺コンテキスト（セクション名、見出し）、className から推測
+       - about.yaml から会社名/サービス名を取得（可能な場合）
+       - 簡潔で具体的な説明（15字以内推奨、20字以内許容）
+       - 「画像」「写真」「イメージ」などの冗長な語は避ける
     
-    step_4:
-      action: "alt 属性を追加"
+    4. 品質チェック
+       - 文字数: 20字以内か
+       - 冗長な語: 含まれていないか
+       - 具体性: 具体的な説明になっているか
+       - 不適切な alt がある場合は自動的に改善
+    
+    5. search_replace で alt 属性を追加または修正
+  
+  generation_examples:
+    新規追加:
+      - '<Image src="/logo.png" /> + <header> 内 → "株式会社〇〇のロゴ"'
+      - '<Image src="/hero-bg.jpg" /> + hero セクション → "〇〇サービスのメインビジュアル"'
+      - '<img src="/office.jpg" /> + <p>東京オフィス</p> の下 → "東京オフィスの外観"'
+    
+    不適切な alt の修正:
+      - '<img src="/test.jpg" alt="画像" /> → alt="テストセクションの説明"'
+      - '<Image src="/hero.jpg" alt="写真" /> → alt="メインビジュアル"'
+      - '<Image src="/sample.png" alt="sample" /> → alt="サービスアイコン"'
+      - '<img src="/logo.png" alt="株式会社メディアプルーフのロゴマークの画像" /> → alt="株式会社メディアプルーフのロゴ"（冗長な語を削除、文字数削減）'
+  
+  important_notes:
+    - CSS背景画像には alt 属性を設定できない（検出のみ行う）
+    - 装飾的な画像はaria-label または説明テキストで対応
+  
+  quality_check_and_fix:
+    description: "生成した alt テキストが適切か自動検証し、不適切な場合は自動修正"
+    
+    validation_and_fix_rules:
+      - name: "文字数チェック"
+        check: "20字以内か（15字以内推奨）"
+        if_too_long: "冗長な部分を削除して15字以内に改善"
+        example: "株式会社メディアプルーフのロゴマークの画像（22字） → 株式会社メディアプルーフのロゴ（15字）"
       
-      method:
-        tool: "search_replace"
-        
-        process: |
-          1. 検出した画像タグを old_string とする
-          2. alt="{生成したテキスト}" を追加した画像タグを new_string とする
-          3. search_replace で置換
-        
+      - name: "冗長な単語のチェック"
+        forbidden_words: ["画像", "写真", "イメージ", "image", "photo", "ピクチャー", "picture"]
+        check: "これらの語が含まれていないか"
+        if_found: "冗長な語を削除して改善"
         examples:
-          example_1:
-            old_string: '<Image src="/logo.png" width={100} height={50} />'
-            new_string: '<Image src="/logo.png" alt="株式会社メディアプルーフのロゴ" width={100} height={50} />'
-          
-          example_2:
-            old_string: '<img src="/office.jpg" className="rounded-lg" />'
-            new_string: '<img src="/office.jpg" alt="東京オフィスの外観" className="rounded-lg" />'
+          - 'alt="画像" → コンテキストから適切な説明を生成'
+          - 'alt="ロゴの画像" → "ロゴ"'
+          - 'alt="東京オフィスの外観写真" → "東京オフィスの外観"'
+      
+      - name: "冗長な修飾語のチェック"
+        forbidden_patterns: ["〜用の", "〜のための", "〜に関する", "〜についての"]
+        check: "冗長な修飾語が含まれていないか"
+        if_found: "修飾語を削除して簡潔化"
+        examples:
+          - 'alt="サービス紹介用の画像" → "サービス紹介"'
+          - 'alt="お問い合わせのためのアイコン" → "お問い合わせアイコン"'
+      
+      - name: "重複語のチェック"
+        check: "同じ意味の語が重複していないか"
+        examples:
+          - 'alt="メインビジュアルイメージ" → "メインビジュアル"（ビジュアル=イメージで重複）'
+          - 'alt="ロゴマーク" → "ロゴ"（ロゴ=マークで重複）'
+        if_found: "重複を削除"
+      
+      - name: "語尾の冗長性チェック"
+        forbidden_suffixes: ["の画像", "の写真", "のイメージ", "のピクチャー"]
+        check: "これらの語尾が含まれていないか"
+        if_found: "語尾を削除"
+        examples:
+          - 'alt="ロゴの画像" → "ロゴ"'
+          - 'alt="オフィスの写真" → "オフィス"'
+      
+      - name: "具体性チェック"
+        forbidden_generic: ["test", "sample", "temp", "image1", "photo1", "pic"]
+        check: "汎用的な語が含まれていないか"
+        if_found: "コンテキストから具体的な説明を生成"
+        examples:
+          - 'alt="test" → ファイル名とコンテキストから適切な説明を生成'
+          - 'alt="sample" → コンテキストから具体的な説明を生成'
+      
+      - name: "会社名/サービス名の含有（推奨）"
+        check: "可能な場合は会社名またはサービス名が含まれているか"
+        if_not_found: "about.yaml から会社名を取得して追加（可能な場合）"
+        note: "必須ではないが、含まれている方がSEO的に望ましい"
+    
+    auto_fix_process: |
+      1. 生成した alt テキストを検証
+      2. 不適切な点を発見したら自動的に改善
+      3. 改善後の alt テキストで search_replace を実行
+      4. 検証結果を報告
+    
+    output_on_quality_check:
+      if_all_pass: |
+        ✅ すべての alt 属性が品質基準をクリアしました
+      
+      if_auto_fixed: |
+        ✅ 一部の alt 属性を自動改善しました
         
-        position: "src 属性の直後に alt 属性を挿入"
+        改善内容:
+        - {image_path}: "{before}" → "{after}" （理由: {reason}）
   
   output:
     template: |
@@ -234,17 +184,9 @@ workflow_1_alt_tags:
       
       追加した alt 属性:
       - {image_path}: "{alt_text}"
-      - {image_path}: "{alt_text}"
       
-      【CSS背景画像】
-      検出された背景画像:
-      - {bg_image_1}（装飾的な画像として使用）
-      - {bg_image_2}（装飾的な画像として使用）
-      
-      💡 注意:
-      - CSS背景画像には alt 属性を設定できません
-      - 装飾的な画像として扱われるため、SEO上問題ありません
-      - 重要な情報を含む場合は、<Image> タグに変更することを推奨
+      【CSS背景画像】（検出のみ）
+      - {bg_image_list}
       
       💡 確認:
       生成された alt テキストが適切か確認し、必要に応じて手動で修正してください。
@@ -255,311 +197,87 @@ workflow_1_alt_tags:
 workflow_2_metadata:
   
   name: "app/layout.tsx に metadata を設定"
-  description: "title, description, keywords, openGraph, twitter を含む完全なSEO設定"
   
-  process:
-    step_1:
-      action: "app/layout.tsx を読み込み、既存 metadata を確認"
-      
-      method:
-        tool: "read_file"
-        target: "app/layout.tsx"
-      
-      detection:
-        pattern: "export const metadata"
-        check: |
-          1. "export const metadata: Metadata = {" を検索
-          2. 既存の title, description, keywords を抽出
-      
-      extraction_example: |
-        // layout.tsx
-        export const metadata: Metadata = {
-          title: "株式会社メディアプルーフ - 東京の校閲サービス",
-          description: "...",
-          keywords: ["校閲", "東京"],
-        };
-        
-        抽出結果:
-        - existing_title: "株式会社メディアプルーフ - 東京の校閲サービス"
-        - existing_description: "..."
-        - existing_keywords: ["校閲", "東京"]
+  description: |
+    title, description, keywords, openGraph, twitter を含む完全なSEO設定を自動実装。
+  
+  information_sources:
+    priority_1:
+      name: "既存 metadata（layout.tsx）"
+      action: "title, description, keywords すべて存在する場合は再利用"
+      note: "ドメイン接続で設定済みの可能性がある"
+      reuse: "既存の値をそのまま使用し、openGraph, twitter のみ新規生成"
     
-    step_2:
-      action: "情報源の優先順位に従って情報収集"
-      
-      priority_1:
-        name: "既存 metadata（layout.tsx）"
-        condition: "title, description, keywords すべて存在"
-        action: "既存の値を再利用（ドメイン接続で設定済みの可能性）"
-        
-        reuse_strategy: |
-          - title: そのまま使用
-          - description: そのまま使用
-          - keywords: そのまま使用
-          - openGraph, twitter: 既存の値を流用して新規生成
-      
-      priority_2:
-        name: "about.yaml（サイト構成シート）"
-        condition: "既存 metadata がない、または不完全"
-        
-        method:
-          tool: "read_file"
-          target: "about.yaml"
-          
-          process: |
-            1. read_file で about.yaml を読み込む
-            2. YAML をパースして site セクションを取得
-            3. 以下の情報を抽出
-        
-        extraction:
-          company_name:
-            source: "site.name"
-            example: "株式会社メディアプルーフ"
-          
-          service_area:
-            source: "site.contact_defaults.address"
-            extraction: "都道府県・市区を抽出"
-            example: "東京都新宿区西新宿..." → "東京"
-          
-          main_message:
-            source: "site.pages[0].sections[0].content.heading"
-            example: "メディアの正しさを担保"
-          
-          services:
-            source: "site.pages で id: business のもの、または sections で type: service-detail のもの"
-            example: ["ニュース番組", "広告制作物", "公共案件"]
-        
-        if_not_available:
-          action: "about.yaml が読めない場合は priority_3 に進む"
-      
-      priority_3:
-        name: "app/page.tsx（コードファイル）"
-        condition: "about.yaml もない、または読み取れない"
-        
-        method:
-          tool: "read_file"
-          targets:
-            - "app/page.tsx"
-            - "app/components/Header.tsx（可能な場合）"
-            - "app/components/Footer.tsx（可能な場合）"
-          
-          process: |
-            1. read_file で app/page.tsx を読み込む
-            2. コード内から以下の情報を抽出
-            3. Header, Footer コンポーネントも読み込んで情報を補完
-        
-        extraction:
-          company_name:
-            sources:
-              - "page.tsx の h1タグ（例: <h1>株式会社メディアプルーフ</h1>）"
-              - "hero セクションの見出し"
-              - "Header コンポーネントのロゴテキスト"
-            extraction_method: "正規表現で <h1>...</h1> を抽出"
-            example: "株式会社メディアプルーフ"
-          
-          service_description:
-            sources:
-              - "hero セクションの本文（<p>...</p>）"
-              - "メインコンテンツの説明文"
-            extraction_method: "hero クラス名を持つ section 内のテキストを抽出"
-            example: "メディアの正しさを担保する校閲サービス"
-          
-          service_area:
-            sources:
-              - "Footer コンポーネントの住所"
-              - "Contact ページの住所"
-            extraction_method: "住所パターン（都道府県名）を正規表現で抽出"
-            example: "東京都新宿区西新宿..." → "東京"
-          
-          services:
-            sources:
-              - "サービスカード（className='service-card' など）"
-              - "Navigation メニュー（<Link> のラベル）"
-            extraction_method: "見出しタグ（h2, h3）またはカード内のテキストを抽出"
-            example: ["校閲サービス", "ニュース番組", "広告制作"]
-        
-        if_not_available:
-          action: "すべての情報源が読めない場合は、このワークフローをスキップ"
+    priority_2:
+      name: "about.yaml（サイト構成シート）"
+      action: "既存 metadata がない場合は about.yaml から情報を抽出"
+      extract: "site.name, contact_defaults.address, pages[].sections から会社名・地域・サービスを抽出"
     
-    step_3:
-      action: "title, description, keywords を生成（必要な場合のみ）"
-      
-      note: |
-        既存 metadata がある場合（ドメイン接続で設定済み）は新規生成をスキップ。
-        既存の値を再利用して openGraph, twitter のみ生成（step_4）。
-      
-      # キーワード生成（市場分析）
-      keywords_generation:
-        condition: "既存 keywords がない場合のみ"
-        
-        market_analysis:
-          step_1:
-            action: "市場・競合・検索意図を分析"
-            method: |
-              - 上位10サイトを想定して頻出語を分析
-              - 利用者ペルソナを要約
-              - 検索意図（情報収集/比較検討/問い合わせ）を特定
-          
-          step_2:
-            action: "一次キーワード（5語）を選定"
-            criteria:
-              - "会社名/サービス名（必須）"
-              - "主要地域 + サービス（例: 東京 校閲）"
-              - "業界キーワード（例: 校閲、メディア）"
-              - "事業内容キーワード（例: ニュース番組）"
-            
-            with_metadata:
-              - "検索ボリューム推定（Low/Mid/High）"
-              - "競合難易度（Low/Mid/High）"
-            
-            example: |
-              1. 株式会社メディアプルーフ（検索ボリューム: Low, 競合: Low）
-              2. 校閲サービス 東京（検索ボリューム: Mid, 競合: Mid）
-              3. ニュース番組 校閲（検索ボリューム: Low, 競合: Low）
-              4. メディア 校正（検索ボリューム: High, 競合: High）
-              5. 広告制作 校閲（検索ボリューム: Mid, 競合: Mid）
-        
-        count: 5
-        format: ["キーワード1", "キーワード2", "キーワード3", "キーワード4", "キーワード5"]
-      
-      # タイトルタグ生成
-      title_generation:
-        condition: "既存 title がない場合のみ"
-        
-        required_elements:
-          - "会社名（サービス名）"
-          - "主要地域"
-          - "一次キーワード"
-          - "CTA動詞 or ベネフィット（例: ｜24時間受付）"
-        
-        length:
-          min: 28
-          max: 32
-          unit: "全角字"
-          pixel_limit: "600px以内"
-        
-        format: "会社名 - サービス エリア | キーワード | ベネフィット"
-        
-        rules:
-          - "数字は半角、単位は全角（例：24時間、365日）"
-          - "同一語句の連続は2回まで"
-          - "句読点は「、」「。」を使用"
-          - "英字間は半角スペース"
-        
-        example: "株式会社メディアプルーフ - 東京の校閲サービス | メディアの正しさを担保（32 文字）"
-      
-      # メタディスクリプション生成
-      description_generation:
-        condition: "既存 description がない場合のみ"
-        
-        keyword_usage:
-          primary: "一次KWを2-3回自然に含める"
-          secondary: "二次KWを1-2回含める"
-        
-        length:
-          min: 90
-          max: 120
-          recommended: 110
-          unit: "全角字"
-          pixel_range: "550-680px"
-          note: "途中で「…」が入らないよう110字前後推奨"
-        
-        structure:
-          - "会社の紹介"
-          - "サービス内容・特徴"
-          - "ベネフィット"
-          - "行動喚起（電話・フォーム）"
-        
-        rules:
-          - "数字は半角、単位は全角（例：24時間、365日）"
-          - "ネガティブ語は使用しない（例：孤独死など）"
-          - "同一語句の連続は2回まで"
-          - "句読点は「、」「。」を使用"
-          - "英字間は半角スペース"
-        
-        example: "株式会社メディアプルーフは、ニュース番組・広告・公共案件の校閲に特化したサービスを提供。誤字脱字のチェックに留まらず、ウラ取り・修正案の提示まで対応。東京都新宿区を拠点に、高度な校閲で制作物の品質と信頼を守ります。お気軽にお問い合わせください。（120 文字）"
+    priority_3:
+      name: "app/page.tsx（コードファイル）"
+      action: "about.yaml もない場合は page.tsx から情報を抽出"
+      extract: "h1タグ、hero セクション、Footer の住所、サービスカードから情報を抽出"
     
-    step_4:
-      action: "openGraph と twitter を生成（常に実行）"
-      
-      openGraph:
-        template: |
-          openGraph: {
-            title: "{title}",
-            description: "{description}",
-            type: "website",
-            locale: "ja_JP",
-          }
-        
-        note: "既存 or 新規生成した title, description を使用"
-      
-      twitter:
-        template: |
-          twitter: {
-            card: "summary_large_image",
-            title: "{title}",
-            description: "{description}",
-          }
+  seo_generation:
+    condition: "既存 metadata がない場合のみ生成"
     
-    step_5:
-      action: "layout.tsx を更新"
-      
-      method:
-        tool: "search_replace"
-        
-        case_1_existing_metadata:
-          description: "既存 metadata がある場合は置換"
-          
-          find_pattern: |
-            export const metadata: Metadata = {
-              // 既存の内容すべて
-            };
-          
-          replace_with: |
-            export const metadata: Metadata = {
-              title: "{title}",
-              description: "{description}",
-              keywords: [{keywords}],
-              openGraph: {
-                title: "{title}",
-                description: "{description}",
-                type: "website",
-                locale: "ja_JP",
-              },
-              twitter: {
-                card: "summary_large_image",
-                title: "{title}",
-                description: "{description}",
-              },
-            };
-        
-        case_2_no_metadata:
-          description: "metadata がない場合は新規追加"
-          
-          find_position: "export default function RootLayout の直前"
-          
-          insert: |
-            export const metadata: Metadata = {
-              title: "{title}",
-              description: "{description}",
-              keywords: [{keywords}],
-              openGraph: {
-                title: "{title}",
-                description: "{description}",
-                type: "website",
-                locale: "ja_JP",
-              },
-              twitter: {
-                card: "summary_large_image",
-                title: "{title}",
-                description: "{description}",
-              },
-            };
-            
-        
-        import_check:
-          check: "import { Metadata } from 'next' が存在するか"
-          if_not_exists: "ファイルの先頭に import { Metadata } from 'next'; を追加"
+    note: |
+      既存 metadata がある場合（ドメイン接続で設定済み）は、
+      既存の値を再利用して openGraph, twitter のみ生成。
+    
+    # キーワード生成（市場分析）
+    keywords:
+      method: "市場・競合・検索意図を分析し、一次キーワード（5語）を選定"
+      criteria:
+        - "会社名/サービス名（必須）"
+        - "主要地域 + サービス（例: 東京 校閲）"
+        - "業界キーワード、事業内容キーワード"
+      with_metadata: "検索ボリューム推定（Low/Mid/High）、競合難易度（Low/Mid/High）"
+    
+    # タイトルタグ生成
+    title:
+      required: "会社名 + 主要地域 + 一次キーワード + CTA/ベネフィット"
+      length: "28-32全角字（600px以内）"
+      rules:
+        - "数字は半角、単位は全角（例：24時間、365日）"
+        - "同一語句の連続は2回まで"
+        - "句読点は「、」「。」、英字間は半角スペース"
+      example: "株式会社メディアプルーフ - 東京の校閲サービス | メディアの正しさを担保（32 文字）"
+    
+    # メタディスクリプション生成
+    description:
+      keyword_usage: "一次KW 2-3回、二次KW 1-2回を自然に含める"
+      length: "90-120全角字（推奨110字、途中で「…」が入らないように）"
+      structure: "会社紹介 → サービス内容 → ベネフィット → 行動喚起"
+      rules:
+        - "数字は半角、単位は全角"
+        - "ネガティブ語は使用しない（例：孤独死など）"
+        - "同一語句の連続は2回まで"
+        - "句読点は「、」「。」、英字間は半角スペース"
+      example: "株式会社メディアプルーフは、ニュース番組・広告・公共案件の校閲に特化したサービスを提供。誤字脱字のチェックに留まらず、ウラ取り・修正案の提示まで対応。東京都新宿区を拠点に、高度な校閲で制作物の品質と信頼を守ります。お気軽にお問い合わせください。（120 文字）"
+    
+  openGraph_twitter:
+    action: "openGraph と twitter を生成（常に実行）"
+    template: |
+      openGraph: {
+        title: "{title}",
+        description: "{description}",
+        type: "website",
+        locale: "ja_JP",
+      },
+      twitter: {
+        card: "summary_large_image",
+        title: "{title}",
+        description: "{description}",
+      }
+  
+  layout_update:
+    action: "app/layout.tsx を更新"
+    method: "search_replace で既存 metadata を置換、または新規作成"
+    note: |
+      既存 metadata がある場合は置換。
+      ない場合は export default function RootLayout の直前に新規作成。
+      import { Metadata } from 'next' も必要に応じて追加。
   
   output:
     template: |
@@ -758,118 +476,37 @@ workflow_5_url_slug:
     step_2:
       action: "各ディレクトリの page.tsx を読み込んでコンテンツを分析"
       
-      method:
-        tool: "read_file"
-        
-        process: |
-          1. step_1 で検出した日本語ディレクトリのリストを取得
-          2. 各ディレクトリに対して以下を実行：
-             - read_file で {directory}/page.tsx を読み込む
-             - コンテンツを分析
-        
-        example: |
-          step_1 の結果: ["app/会社概要/", "app/サービス紹介/", "app/お問い合わせ/"]
-          
-          実行:
-          - read_file("app/会社概要/page.tsx")
-          - read_file("app/サービス紹介/page.tsx")
-          - read_file("app/お問い合わせ/page.tsx")
+      method: |
+        検出した日本語ディレクトリごとに page.tsx を読み込み、
+        h1タグ、metadata.title、主要コンテンツから役割を特定する。
       
-      analysis_materials:
-        1_h1_tag:
-          source: "h1タグのテキスト"
-          examples:
-            - "<h1>会社概要</h1> → 会社概要"
-            - "<h1>お問い合わせ</h1> → お問い合わせ"
-            - "<h1>サービス紹介</h1> → サービス紹介"
-        
-        2_metadata_title:
-          source: "metadata.title（存在する場合）"
-          examples:
-            - "title: 会社概要 | 株式会社〇〇 → 会社概要"
-        
-        3_main_content:
-          source: "ページの主要コンテンツ"
-          examples:
-            - "校閲サービスの紹介... → サービス"
-            - "会社の沿革... → 会社概要"
-        
-        4_navigation_label:
-          source: "ナビゲーションメニューのラベル"
-          examples:
-            - "<Link href='/会社概要'>会社概要</Link> → 会社概要"
+      example: |
+        app/会社概要/page.tsx を読み込む
+        → h1: "会社概要"
+        → 役割: 会社情報のページ
     
     step_3:
-      action: "コンテキストを分析して英語スラッグを生成"
+      action: "サイトの内容を見て、適切な英語スラッグを生成"
       
-      generation_algorithm: |
-        1. ページのコンテンツを分析（h1, metadata, 本文）
-        2. ディレクトリの役割を特定（会社概要、サービス、お問い合わせなど）
-        3. 汎用的な変換表を参照
-        4. コンテンツに応じて最適な英語を選択
-        5. SEOフレンドリーな形式に変換（小文字、ハイフン区切り）
+      instructions: |
+        ページの内容（h1、metadata、本文）を分析し、
+        最適な英語スラッグを生成する。
+        小文字、ハイフン区切りで簡潔に（1-2単語推奨）。
       
       common_translations:
-        general:
-          - "会社概要 → company"
-          - "会社情報 → company"
-          - "お問い合わせ → contact"
-          - "問い合わせ → contact"
-          - "事業内容 → business"
-          - "実績 → works"
-          - "採用情報 → recruit"
-          - "ニュース → news"
-          - "ブログ → blog"
-        
-        service_related:
-          - "サービス → services"
-          - "サービス紹介 → services"
-          - "サービス一覧 → services"
-          - "ソリューション → solutions"
-        
-        context_based:
-          - "コンテンツに「校閲」が多い → proofreading"
-          - "コンテンツに「制作」が多い → production"
-          - "コンテンツに「技術」が多い → technology"
+        - "会社概要/会社情報 → company"
+        - "お問い合わせ/問い合わせ → contact"
+        - "事業内容 → business"
+        - "サービス/サービス紹介 → services"
+        - "実績 → works"
+        - "採用情報 → recruit"
+        - "ニュース → news"
+        - "ブログ → blog"
       
       slug_rules:
         - "小文字のみ使用"
         - "単語の区切りはハイフン（-）"
-        - "スペースは削除またはハイフンに変換"
         - "簡潔に（1-2単語推奨）"
-      
-      examples:
-        example_1:
-          directory: "app/会社概要/"
-          page_content:
-            h1: "会社概要"
-            content: "株式会社メディアプルーフの概要..."
-          analysis: "会社情報のページ"
-          generated_slug: "company"
-        
-        example_2:
-          directory: "app/サービス紹介/"
-          page_content:
-            h1: "サービス紹介"
-            content: "校閲サービス、ニュース番組..."
-          analysis: "サービス一覧のページ"
-          generated_slug: "services"
-        
-        example_3:
-          directory: "app/お問い合わせ/"
-          page_content:
-            h1: "お問い合わせ"
-            content: "お気軽にお問い合わせください..."
-          analysis: "問い合わせフォームのページ"
-          generated_slug: "contact"
-        
-        example_4:
-          directory: "app/校閲について/"
-          page_content:
-            h1: "校閲サービスについて"
-            content: "高度な校閲で品質を担保..."
-          analysis: "校閲サービス紹介のページ（サイト固有）"
-          generated_slug: "proofreading"
     
     step_4:
       action: "提案を出力（実装はユーザーが手動で実施）"
@@ -970,6 +607,35 @@ troubleshooting:
 # 変更履歴
 # =============================================================================
 changelog:
+  - version: "2.1.0"
+    date: "2025-11-04"
+    changes:
+      - "workflow_1: multiline モード対応（複数行にまたがる Image タグを検出）"
+      - "workflow_1: grep で multiline: true を明示"
+      - "workflow_1: 品質チェック機能を追加（文字数、冗長語、具体性）"
+      - "workflow_1: 不適切な alt を自動改善（「画像」「写真」「test」など）"
+      - "workflow_1: 不適切な alt の修正例を4つ追加"
+      - "実際の使用で発見された問題を修正（ユーザーフィードバック反映）"
+      - "合計660行"
+  
+  - version: "2.0.0"
+    date: "2025-11-04"
+    changes:
+      - "大幅なシンプル化（1,050行 → 570行、46%削減）"
+      - "workflow_1: altタグを簡潔化（AIの判断に任せる）"
+      - "workflow_2: metadata を簡潔化（重要なルールのみ残す）"
+      - "workflow_3: sitemap は現状維持（外部URL混入防止のため）"
+      - "workflow_4: robots は現状維持（重要な設定ファイルのため）"
+      - "workflow_5: URLスラッグを簡潔化"
+      - "過度な構造化を避け、AIの柔軟性を活かす設計に変更"
+  
+  - version: "1.5.0"
+    date: "2025-11-04"
+    changes:
+      - "workflow_1: 画像検出戦略を改善（src= 検索を優先）"
+      - "workflow_1: Hero.tsx, Features.tsx などのコンポーネント内画像を確実に検出"
+      - "クローンしたプロジェクトでの画像検出精度を向上"
+  
   - version: "1.4.0"
     date: "2025-11-04"
     changes:
@@ -980,7 +646,6 @@ changelog:
       - "workflow_5: 複数ファイルの read_file 手順を明確化"
       - "すべてのワークフローで「どう読み込むか」を明示"
       - "AIが推測せず確実に実行できるよう改善"
-      - "合計1,017行"
   
   - version: "1.3.0"
     date: "2025-11-04"

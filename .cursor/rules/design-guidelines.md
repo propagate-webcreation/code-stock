@@ -1,0 +1,282 @@
+# Design Guidelines
+
+This file defines responsive design principles, creation rules, editing rules, and common rules for web projects.
+
+---
+
+## 📐 レスポンシブ設計原則
+
+### ブレークポイント設計（Tailwind対応）
+- モバイルファースト原則に従い、`sm/md/lg/xl` に限定
+- 基本ブレークポイントは768px（`md:`）
+- コンポーネント単位は `@container` クエリを優先
+
+### ビューポートと安全域
+- meta viewport: `width=device-width, initial-scale=1`
+- ユーザーズームは制限しない
+- notch対応: `env(safe-area-inset-*)` を考慮
+- 100vh依存を避け、`dvh` や `svh` を活用（Tailwindでは `min-h-dvh` や `h-[100svh]`）
+
+### 流動レイアウト原則
+- 固定幅・固定高さを避け、`w-full` や `h-auto` を基本
+- 本文は `max-w-prose` や `max-w-screen-md` で可読性を保つ
+- 余白は `gap-*` や `space-*` で一元管理
+
+### タイポグラフィ最適化
+- `clamp()` で流動的な文字サイズを定義
+- 1行の文字数: 和文35-45文字 / 欧文45-80文字
+- 行間は `leading-*`、段落間は `mt-*` で調整
+
+### 画像のレスポンシブ運用
+- 画像は `max-w-full h-auto` を基本
+- WebP/AVIF形式と `srcset`/`sizes` で最適化
+- `loading=lazy` と `width`/`height` でレイアウトシフト防止
+
+### パフォーマンス予算
+- 画面幅ごとに初期表示の転送量上限を設定（例：500KB以下）
+- 画像/フォント/JSは分割・遅延読み込み
+- すべてのメディアに `width` `height` を指定してCLS防止
+
+### 環境メディア特性対応
+- `prefers-reduced-motion` でアニメーション抑制
+- `dark:` / `light:` でOSテーマ対応
+- 縦横切り替えでレイアウト破綻しないこと
+
+### 検証と品質確認
+- 主要端末・ブラウザで実機検証
+- 3G/4G、高DPI、低解像度でも確認
+- バグは端末・OS・再現手順・画面幅を記録
+
+---
+
+## 🆕 新規作成時のルール（creating）
+
+### フォーム設計
+
+#### プレースホルダー設定
+- 名前欄: `placeholder="例：山田太郎"`
+- メール欄: `placeholder="例：xxxx@gmail.com"`
+- 電話番号欄: `placeholder="例：090-1234-5678"`
+- 自由記入欄: 抽象的な文言を避け、具体例を記載（です・ます調は使用しない）
+  - 例: `placeholder="◯月中の納品を希望"` `placeholder="新商品の取り扱いについて質問がある"`
+
+#### フォーム要素
+- 送信ボタン: `w-full min-h-[48px] text-base` で視認性を高める
+- 返信目安: フォーム上部に「●営業日以内にご返信いたします」と明記
+- 狭幅ではラベルを上に、広幅では横に配置
+- `inputmode` / `autocomplete` でキーボード最適化
+- エラー/補助文言は `mt-1 text-sm` で視認性確保
+
+### レイアウト設計
+
+#### 基本原則
+- テキストボックス幅は最小320px確保
+- 本文が4行超える場合は `text-left` を使用（中央揃え禁止）
+- 4つのボックスは `grid grid-cols-2` で2×2配置（不均等な並び禁止）
+
+#### カード設計
+- カードは1画面につき最大3枚（情報密度が高い場合はリスト形式）
+- 角は `rounded-none` 基本、必要時は `rounded-sm`（最大4px）
+- カード内要素は `flex flex-col justify-between` でレイアウト
+- ボタンは `mt-auto` で最下部に配置し高さを統一
+- `shadow-none` を使用、`border border-gray-200` で代替
+
+#### セクション配置
+- 背景写真セクションを連続使用しない（間に背景なしセクションを挟む）
+- 会社概要は `<table>` または `<dl>` でテーブル形式
+
+#### ヘッダー設計
+- 改行禁止: `whitespace-nowrap` を使用
+- 文字間隔: `tracking-wide` や `tracking-wider` で重なり防止
+- ロゴに `Link href="/"` を設定してトップ遷移
+- 高さは画面の10%（`h-[10vh]`）を目安
+
+#### ヒーローセクション
+- 高さは画面の80%（`h-[80vh]`）
+- ヘッダー直下から開始（`mt-[10vh]`）
+
+### デザインルール
+
+#### 配色
+- WEBサイト配色比率: ベース70% / メイン25% / アクセント5%
+- グラデーションは背景のみ許可（`bg-gradient-to-r` などで実装）
+
+#### ボタンデザイン
+- MVボタンは `bg-◯◯ text-white` で塗りつぶし
+- 角丸は独自の半径を設定し他UI要素と差別化（`rounded-[◯px]`）
+
+#### その他
+- 情報グループは `border p-4 rounded` で囲い視認性向上
+- 絵文字使用禁止、HeroiconsやSVGアイコンを使用
+
+### ブレークポイント設計
+- デザインシステム基盤: トークン定義と一元管理
+- 320-1440pxの間で動作確認
+
+---
+
+## ✏️ 修正時のルール（editing）
+
+### 改行・テキスト調整
+- 改行修正: Tailwindの `w-◯◯` や `flex` で幅調整
+- `break-words` や `break-keep` も検討
+- 1行表示: `whitespace-nowrap overflow-hidden text-ellipsis` を組み合わせ
+- フォントサイズや `tracking-tight` で調整
+
+### モバイル最適化（Tailwind対応）
+
+#### フォントサイズ
+- モバイル: `text-base`（1rem）以上を基本
+- `sm`（640px以上）: `text-lg`
+- `md`（768px以上）: `text-xl`
+- タイトル・CTA: `text-center text-xl sm:text-2xl md:text-3xl`
+
+#### 中央配置
+- `text-center`、`mx-auto`、`flex justify-center` を組み合わせ
+- 幅は `w-full` 基本、`w-[90%]` や `max-w-screen-sm` で親要素に収める
+
+#### CSS優先度
+- コンポーネント構造に合わせた具体的なセレクター
+- `!important` は基本的に避ける
+
+### レスポンシブ段階調整
+- base（〜639px）→ `text-base`
+- sm（640px〜767px）→ `text-lg`
+- md（768px〜1023px）→ `text-xl`
+- 各段階で10〜30%のサイズ変化に抑える
+
+### デバイス種別判定
+- プロンプト1行目が「D」→ デスクトップ版修正
+- プロンプト1行目が「M」→ モバイル版修正
+
+### レイアウト是正
+- 固定幅・絶対配置を段階的に撤廃
+- 余白・文字・色をトークン化し一元管理
+- 重複メディアクエリを整理統合
+- DOM順序を論理的読み順に整理
+
+### 互換性と段階導入
+- 新機能（コンテナクエリ等）はフォールバック用意
+- 重要画面から優先的にレスポンシブ化
+- 旧CSSを分離し段階的にTailwindへ置換
+- ビジュアルテストで影響範囲確認
+
+---
+
+## 🌐 共通ルール（always）
+
+### 🚫 デザイン禁止事項
+
+#### 影の使用禁止
+- Tailwindで `shadow-*` を一切使用しない
+- CSSで `box-shadow` を絶対に付与しない
+- カードには `shadow-none` + `border border-gray-200` で代替
+
+#### ボタンの透明塗りつぶし禁止
+- すべてのボタンに `bg-transparent` や `bg-white` を使用しない
+- `bg-◯◯` を明示的に指定
+
+#### グラデーション制限
+- 背景以外でのグラデーション使用禁止
+- 背景に使う場合は `bg-gradient-to-r` などで実装
+
+#### 絵文字禁止
+- UI上で絵文字は使用しない
+- HeroiconsやSVGアイコンを使用
+
+### ✅ レイアウト原則
+
+#### モバイルファースト
+- Tailwindのモバイルファースト原則に従い、`md:` 以上で調整
+- 横スクロール禁止: `overflow-x-hidden` や `max-w-full`
+- タップ領域: `min-w-[44px] min-h-[44px]` 以上
+
+#### 画像配置
+- 横並び画像: `object-cover` + `flex gap-4` で均等配置
+- すべて `max-w-full h-auto` を基本
+
+#### テキストレイアウト
+- 1行表示: `whitespace-nowrap` で不自然な改行を防止
+- テキストボックス幅: `w-full max-w-[◯◯px]` で調整
+
+#### カード配置
+- 横並びカード: `flex flex-col justify-between`
+- ボタン: `mt-auto` で最下部に配置し高さ統一
+- 角: `rounded-none` 基本、最大 `rounded-sm`
+- 影: `shadow-none` + `border border-gray-200`
+- 1画面最大3枚、情報密度が高い場合はリスト形式
+- カード内要素: `flex flex-col justify-start` や `gap-4` で開始位置を揃える
+- `min-h-[◯◯px]` で高さ固定しズレ防止
+
+#### ヘッダー・フッター
+- 改行禁止: `whitespace-nowrap`
+- ロゴに `Link href="/"` を設定
+- 共通コンポーネントとして全ページで共有
+- ヘッダー高さ: `h-[10vh]` 目安
+
+#### ヒーローセクション
+- 高さ: `h-[80vh]`
+- ヘッダー直下配置: `mt-[10vh]`
+
+#### スマホナビ
+- 横幅は常に画面幅と一致
+- すべての要素を画面幅内に収める
+- アニメーション要素も `overflow-x-hidden` で横スクロール防止
+
+#### 情報整理
+- グループは `border p-4 rounded` で囲い視認性向上
+
+### 🎨 ボタンデザイン
+
+#### 基本原則
+- CTAボタン: 白背景・透明禁止
+- 塗りつぶし: `bg-◯◯ text-white` で目立つ配色
+- MVボタン: `bg-◯◯ text-white` で塗りつぶし
+- 角丸: `rounded-[◯px]` で独自の半径を設定し差別化
+
+#### アイコンとホバー
+- SVGアイコン: `inline-flex` で配置、`w-5 h-5` サイズ指定
+- `fill-current` で色を継承
+- ホバー時: `hover:bg-◯◯` で通常より暗い色
+
+### 🎨 SNSリンク
+- LINE: `text-[#06C755]`
+- Instagram: 背景グラデーションでブランドカラー再現
+
+### 🎯 ナビゲーション
+- 幅に応じて `flex hidden` / `block md:hidden` で切替
+- ハンバーガー: `aria-label` や `sr-only` で意味明示
+- 固定ヘッダー: `h-◯` 最小限、`pt-[◯px]` で調整
+- フォーカストラップとEscapeキーで開閉
+
+### 📱 タップ目標と操作性
+- タップ領域: `min-w-[44px] min-h-[44px]` 基本
+- ホバー前提操作: `focus` や `aria-pressed` で代替
+- `focus-visible:outline` でキーボード操作時も視認性確保
+- 片手操作と到達距離を考慮
+
+### 📋 フォーム
+- 狭幅: ラベル上配置、広幅: 横配置
+- `inputmode` / `autocomplete` でキーボード最適化
+- エラー/補助文言: `mt-1 text-sm` で視認性確保
+- 日付/数値: デバイス標準UI優先
+
+### 📊 表・データ
+- `overflow-x-auto`、カード化、スタック化で再配置
+- `th` / `td` の関係性保持、ヘッダー常時表示
+- 主要列優先表示、省略は `details` や `accordion` で解消
+- `border`、`p-*`、`text-sm` でセル可読性確保
+
+### 🎬 メディア埋め込み
+- `aspect-ratio` + `w-full` で幅に追従
+- 自動再生・音声再生はデフォルト無効
+- 動画: `track` やキャプション、代替テキスト設定
+
+### 🎨 CTA セクション
+- 背景画像を使用
+- `background-attachment: fixed` で固定表示
+
+### 🔧 CSS管理
+- セレクタ重複禁止、ユーティリティクラスで制御
+- カスタムCSS必要時はセレクタ重複避け、`@media` は `tailwind.config.js` で統合管理
+
