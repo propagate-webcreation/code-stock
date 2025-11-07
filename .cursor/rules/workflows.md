@@ -254,3 +254,68 @@ Execute only when all of the following conditions are met:
 🎉 Google提出の準備が完了しました！
 ```
 
+---
+
+## 📝 Contact Form Implementation Workflow
+
+### Triggers
+- フォーム実装
+
+⚠️ Note: To prevent false triggers, only "フォーム実装" triggers this workflow.
+- ❌ "お問い合わせフォームを作成して" → Normal form creation (won't trigger)
+- ✅ "フォーム実装して" → Universal Form API implementation (will trigger)
+
+Reason: To distinguish between design-only form creation and full Universal Form API implementation.
+
+### Context Files
+- `memories/form_workflow.yaml`
+- `FORM実装/FORMREADME.md`
+- `FORM実装/FORMTODO.md`
+
+### Critical Rules
+
+#### Rule 1: Always Load Workflow File
+When contact form keywords are detected, **always read `memories/form_workflow.yaml` first**.
+
+This file contains:
+- ✅ 5-step workflow for form implementation
+- ✅ JSON generation for admin panel registration
+- ✅ Next.js component auto-generation
+- ✅ Security measures (XSS, HTML tag removal, validation)
+
+#### Rule 2: Information Collection
+Collect information from:
+1. about.yaml (site configuration sheet) ← Priority
+2. User input (if about.yaml is unavailable)
+
+Required information:
+- Site ID (lowercase, numbers, hyphens only)
+- Company name
+- Admin email address
+- Form fields definition
+
+#### Rule 3: Automatic File Generation
+1. **Generate JSON for admin panel:**
+   - Use write tool or display in chat
+   - User will paste this JSON into admin panel
+
+2. **Generate Next.js component:**
+   - Use write tool to create app/contact/page.tsx
+   - Include all security measures (escapeHtml, sanitizeInput, validateForm)
+   - Site ID must match the registered ID
+
+#### Rule 4: Security Measures (MANDATORY)
+All generated forms MUST include:
+- ✅ maxLength attribute (character limit)
+- ✅ pattern attribute (dangerous character restriction)
+- ✅ escapeHtml() function (XSS prevention)
+- ✅ sanitizeInput() function (HTML tag removal)
+- ✅ validateForm() function (pre-submit validation)
+
+**Never skip security implementation.**
+
+### Integration with Other Workflows
+- Use vercel.json's BASE_URL for productionDomain
+- Use about.yaml's contact_defaults.email for adminEmail
+- Consistent with domain connection workflow
+

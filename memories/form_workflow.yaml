@@ -1,0 +1,612 @@
+# =============================================================================
+# お問い合わせフォーム実装ワークフロー（v1.0.0）
+# =============================================================================
+# 目的: Universal Form API を使用したお問い合わせフォームの完全自動実装
+#
+# 対象: Next.js + Tailwind CSS プロジェクト（DefaultSetting クローン）
+# 作成日: 2025-11-07
+# 最終更新: 2025-11-07
+# =============================================================================
+
+schema_version: "1.0.0"
+
+metadata:
+  workflow_name: "お問い合わせフォーム実装"
+  target_framework: "Next.js 13+ (App Router) + Universal Form API"
+  enforcement: "MANDATORY"
+  version: "1.0.0"
+  created: "2025-11-07"
+  updated: "2025-11-07"
+  author: "DefaultSetting Project"
+  description: |
+    Universal Form API を使用して、お問い合わせフォームを完全自動実装：
+    1. サイト情報の収集
+    2. フォームフィールド定義の生成
+    3. 管理画面登録用JSON生成
+    4. Next.jsコンポーネント生成
+    5. バリデーション設定
+
+# =============================================================================
+# トリガー設定
+# =============================================================================
+triggers:
+  main_keywords:
+    - "フォーム実装"
+  
+  note: |
+    ⚠️ 注意: 誤発火を防ぐため、トリガーは「フォーム実装」のみに絞っています。
+    - ❌ "お問い合わせフォームを作成して" → 通常のフォーム作成（発火しない）
+    - ✅ "フォーム実装して" → Universal Form API を使ったフォーム実装（発火する）
+    
+    理由:
+    デザインとしてフォームを作成する場合と、
+    Universal Form API を使った完全なフォーム実装を区別するため。
+  
+  action_keywords:
+    - "して"
+    - "お願い"
+    - "作成して"
+    - "実装して"
+    - "セットアップして"
+    - "設定して"
+  
+  exclude_keywords:
+    - "必要ですか"
+    - "方法"
+    - "教えて"
+    - "説明"
+    - "?"
+    - "？"
+  
+  trigger_logic: |
+    以下の条件をすべて満たす場合のみ実行：
+    1. main_keywords のいずれかが含まれる（「フォーム実装」）
+    2. action_keywords のいずれかが含まれる
+    3. exclude_keywords が含まれない
+  
+  trigger_examples:
+    ok:
+      - "✅ フォーム実装して"
+      - "✅ フォーム実装をお願い"
+      - "✅ フォーム実装を作成して"
+    
+    ng:
+      - "❌ お問い合わせフォームを作成して" → main_keywords なし
+      - "❌ contactフォームを作って" → main_keywords なし
+      - "❌ フォームを実装して" → main_keywords「フォーム実装」が完全一致しない
+      - "❌ フォーム実装の方法は？" → exclude_keywords「方法」「？」
+
+# =============================================================================
+# ワークフロー（5ステップ）
+# =============================================================================
+workflow:
+  
+  step_1:
+    name: "サイト情報とフォームフィールドの決定"
+    status: "CRITICAL"
+    skip_allowed: false
+    
+    description: |
+      about.yaml またはユーザーからの情報を基に、
+      フォーム実装に必要な情報を収集する。
+    
+    information_sources:
+      priority_1:
+        name: "about.yaml（サイト構成シート）"
+        extraction:
+          site_id: "site.name から生成（英小文字・数字・ハイフン）"
+          site_name: "site.name"
+          admin_email: "site.contact_defaults.email"
+          production_domain: "vercel.json の BASE_URL"
+          
+          form_fields: |
+            site.pages で id: contact のものから fields を抽出、
+            または一般的なお問い合わせフォームのフィールドを自動生成
+      
+      priority_2:
+        name: "ユーザーに確認"
+        condition: "about.yaml がない、または情報が不足"
+        ask_user:
+          - "サイトID（例: yourcompany）"
+          - "会社名（例: 株式会社〇〇）"
+          - "通知メールアドレス（例: info@example.com）"
+          - "必要なフォームフィールド（例: 名前、メール、電話、会社名、メッセージ）"
+    
+    default_fields:
+      description: "一般的なお問い合わせフォームの標準フィールド"
+      fields:
+        - name: "name"
+          label: "お名前"
+          type: "text"
+          required: true
+        
+        - name: "email"
+          label: "メールアドレス"
+          type: "email"
+          required: true
+        
+        - name: "company"
+          label: "会社名"
+          type: "text"
+          required: false
+        
+        - name: "phone"
+          label: "電話番号"
+          type: "text"
+          required: false
+        
+        - name: "message"
+          label: "お問い合わせ内容"
+          type: "textarea"
+          required: true
+    
+    output:
+      collected_info:
+        site_id: "string"
+        site_name: "string"
+        admin_email: "string"
+        email_from_name: "string"
+        email_subject: "string"
+        production_domain: "string"
+        fields: "array"
+
+  step_2:
+    name: "管理画面登録用JSON生成"
+    status: "CRITICAL"
+    skip_allowed: false
+    
+    description: |
+      step_1 で収集した情報を基に、
+      Universal Form API の管理画面に登録するJSONを生成する。
+    
+    template: |
+      [
+        {
+          "id": "{site_id}",
+          "siteName": "{site_name}",
+          "adminEmail": "{admin_email}",
+          "emailFromName": "{email_from_name}",
+          "emailSubject": "{email_subject}",
+          "emailTemplateId": "{site_id}_admin",
+          "productionDomain": "{production_domain}",
+          "fields": [
+            {FIELDS_ARRAY}
+          ]
+        }
+      ]
+    
+    placeholder_replacement:
+      site_id:
+        source: "step_1 の site_id"
+        example: "nextmaison"
+        rule: "英小文字・数字・ハイフンのみ"
+      
+      site_name:
+        source: "step_1 の site_name"
+        example: "株式会社ネクストメゾン"
+      
+      admin_email:
+        source: "step_1 の admin_email"
+        example: "info@propagete.inc"
+        note: "最初はテスト用、動作確認後に本番用に変更"
+      
+      email_from_name:
+        source: "step_1 の email_from_name（site_name と同じでOK）"
+        example: "株式会社ネクストメゾン"
+      
+      email_subject:
+        source: "step_1 の email_subject"
+        example: "【ネクストメゾン】新しいお問い合わせ"
+        format: "【{site_name}】新しいお問い合わせ"
+      
+      production_domain:
+        source: "step_1 の production_domain（vercel.json の BASE_URL）"
+        example: "https://nextmaison.com"
+        note: "https:// を含む完全なURL"
+      
+      fields_array:
+        source: "step_1 の fields"
+        format: |
+          {
+            "name": "name",
+            "label": "お名前",
+            "type": "text",
+            "required": true
+          },
+          {
+            "name": "email",
+            "label": "メールアドレス",
+            "type": "email",
+            "required": true
+          },
+          ...
+    
+    output:
+      file: "管理画面登録用のJSON（write ツールでファイル作成、またはチャット表示）"
+      note: |
+        このJSONを管理画面の「一括登録 (JSON)」にペーストして登録する。
+        または、自動的にファイルに書き込んで、ユーザーがコピペする。
+
+  step_3:
+    name: "Next.jsコンポーネント生成"
+    status: "CRITICAL"
+    skip_allowed: false
+    
+    description: |
+      step_1 で決定したフィールドを基に、
+      お問い合わせフォームのNext.jsコンポーネントを自動生成する。
+    
+    component_structure:
+      file_path: "app/contact/page.tsx"
+      use_client: true
+      imports:
+        - "import { useEffect, useState } from 'react';"
+        - "import Script from 'next/script';"
+      
+      sections:
+        - "useState for status and isSubmitting"
+        - "escapeHtml function (XSS対策)"
+        - "sanitizeInput function (HTMLタグ除去)"
+        - "validateForm function (バリデーション)"
+        - "initializeFormHandler function (FormHandler.init)"
+        - "handleSubmit function"
+        - "form JSX (step_1 の fields に基づく)"
+        - "Script tag for FormHandler SDK"
+    
+    form_generation_rules:
+      for_each_field:
+        text:
+          template: |
+            <div className="mb-4">
+              <label htmlFor="{field.name}" className="block text-sm font-medium mb-2">
+                {field.label}{if field.required: " *"}
+              </label>
+              <input
+                type="text"
+                id="{field.name}"
+                name="{field.name}"
+                {if field.required: required}
+                maxLength={100}
+                pattern="[^\<\>\&\"\']+"
+                title="HTMLタグや特殊文字は使用できません"
+                className="w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+        
+        email:
+          template: |
+            <div className="mb-4">
+              <label htmlFor="{field.name}" className="block text-sm font-medium mb-2">
+                {field.label}{if field.required: " *"}
+              </label>
+              <input
+                type="email"
+                id="{field.name}"
+                name="{field.name}"
+                {if field.required: required}
+                maxLength={255}
+                className="w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+        
+        textarea:
+          template: |
+            <div className="mb-6">
+              <label htmlFor="{field.name}" className="block text-sm font-medium mb-2">
+                {field.label}{if field.required: " *"}
+              </label>
+              <textarea
+                id="{field.name}"
+                name="{field.name}"
+                {if field.required: required}
+                maxLength={5000}
+                rows={5}
+                title="HTMLタグは自動的に除去されます"
+                className="w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+    
+    validation_generation:
+      description: "step_1 の fields で required: true のフィールドに対して必須チェックを生成"
+      
+      template: |
+        function validateForm(formData: { [key: string]: any }) {
+          const errors = [];
+          
+          {FOR_EACH required field:}
+          if (!formData.{field.name} || formData.{field.name}.trim() === "") {
+            errors.push("{field.label}は必須です");
+          }
+          
+          // メールアドレス形式チェック
+          const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+          if (formData.email && !emailPattern.test(formData.email)) {
+            errors.push("メールアドレスの形式が正しくありません");
+          }
+          
+          return errors;
+        }
+    
+    site_id_setting:
+      location: "initializeFormHandler function内"
+      code: '(window as any).FormHandler.init("{site_id}", {'
+      critical: "🚨 site_id は step_1 で決定したものを使用"
+    
+    output:
+      file: "app/contact/page.tsx"
+      method: "write ツールで自動作成"
+
+  step_4:
+    name: "セキュリティ対策の確認"
+    status: "MANDATORY"
+    skip_allowed: false
+    
+    description: |
+      生成したコンポーネントにセキュリティ対策が含まれているか確認。
+    
+    required_security:
+      form_level:
+        - "maxLength 属性（文字数制限）"
+        - "pattern 属性（危険な文字の制限）"
+        - "required 属性（必須項目指定）"
+      
+      javascript_level:
+        - "escapeHtml() 関数（XSS対策）"
+        - "sanitizeInput() 関数（HTMLタグ除去）"
+        - "validateForm() 関数（送信前バリデーション）"
+    
+    validation:
+      check_1: "escapeHtml() が実装されているか"
+      check_2: "sanitizeInput() が実装されているか"
+      check_3: "validateForm() が実装されているか"
+      check_4: "フォーム要素に maxLength, pattern が設定されているか"
+    
+    output_on_success: |
+      ✅ セキュリティ対策が実装されています
+    
+    output_on_failure: |
+      ⚠️ 以下のセキュリティ対策が不足しています：
+      - {missing_security_measures}
+
+  step_5:
+    name: "完了報告とテスト手順の提示"
+    status: "MANDATORY"
+    skip_allowed: false
+    
+    output_template: |
+      ✅ お問い合わせフォームの実装が完了しました！
+      
+      📋 生成されたファイル:
+      1. 管理画面登録用JSON（コピー推奨）
+      2. app/contact/page.tsx（フォームコンポーネント）
+      
+      🔧 次のステップ:
+      
+      【1】管理画面での登録
+      1. https://universal-form-api.vercel.app/auth/ にログイン
+         - ユーザー名: info メールアドレス
+         - パスワード: アメリカン****@
+      2. 「一括登録 (JSON)」ボタンをクリック
+      3. 生成されたJSONをペーストして登録
+      
+      【2】ローカルでのテスト
+      ```bash
+      npm run dev
+      # http://localhost:3000/contact にアクセス
+      ```
+      1. すべてのフィールドに値を入力して送信
+      2. 必須フィールドを空にしてエラー確認
+      3. <script>alert('test')</script> を入力してセキュリティ確認
+      
+      【3】管理画面でのデータ確認
+      1. 管理画面の「データ確認」を開く
+      2. テストデータが保存されているか確認
+      3. 通知メールが届いているか確認
+      
+      【4】本番環境への展開
+      ```bash
+      git add app/contact/page.tsx
+      git commit -m "Add contact form"
+      git push origin main
+      ```
+      1. Vercel にデプロイ
+      2. 本番環境からテスト送信
+      3. CORS エラーがないか確認（ブラウザコンソール）
+      
+      ⚠️ 注意事項:
+      - adminEmail は最初テスト用（info@propagete.inc）にしておく
+      - 動作確認後、管理画面で本番用メールアドレスに変更
+      - 許可ドメイン（productionDomain）が正しく設定されているか確認
+
+# =============================================================================
+# 出力ルール
+# =============================================================================
+output_rules:
+  rule_1:
+    name: "JSON生成"
+    description: "管理画面登録用のJSONをコードブロックで出力"
+    format: "```json\n{JSON}\n```"
+  
+  rule_2:
+    name: "コンポーネント生成"
+    description: "Next.jsコンポーネントをTypeScriptコードブロックで出力"
+    format: "```tsx\n{COMPONENT}\n```"
+    method: "write ツールで app/contact/page.tsx に自動作成"
+
+# =============================================================================
+# 使用例
+# =============================================================================
+usage_examples:
+  example_1:
+    title: "about.yaml がある場合（完全自動）"
+    user_input: "お問い合わせフォームを作成して"
+    
+    ai_process:
+      step_1: "about.yaml を読み込む"
+      step_1_result:
+        site_id: "mediaproof"
+        site_name: "株式会社メディアプルーフ"
+        admin_email: "rinnari777@gmail.com"
+        production_domain: "https://www.example.jp"
+        fields: ["name", "email", "company", "phone", "category", "message"]
+      
+      step_2: "JSON生成"
+      step_3: "Next.jsコンポーネント生成"
+      step_4: "セキュリティ対策確認"
+      step_5: "完了報告"
+    
+    ai_output: |
+      ✅ お問い合わせフォームの実装が完了しました！
+      
+      📋 生成されたファイル:
+      
+      【1】管理画面登録用JSON:
+      
+      ```json
+      [
+        {
+          "id": "mediaproof",
+          "siteName": "株式会社メディアプルーフ",
+          "adminEmail": "rinnari777@gmail.com",
+          "emailFromName": "株式会社メディアプルーフ",
+          "emailSubject": "【メディアプルーフ】新しいお問い合わせ",
+          "emailTemplateId": "mediaproof_admin",
+          "productionDomain": "https://www.example.jp",
+          "fields": [
+            {
+              "name": "name",
+              "label": "お名前",
+              "type": "text",
+              "required": true
+            },
+            {
+              "name": "email",
+              "label": "メールアドレス",
+              "type": "email",
+              "required": true
+            },
+            {
+              "name": "company",
+              "label": "会社名",
+              "type": "text",
+              "required": false
+            },
+            {
+              "name": "phone",
+              "label": "電話番号",
+              "type": "text",
+              "required": false
+            },
+            {
+              "name": "category",
+              "label": "お問い合わせ種別",
+              "type": "text",
+              "required": false
+            },
+            {
+              "name": "message",
+              "label": "お問い合わせ内容",
+              "type": "textarea",
+              "required": true
+            }
+          ]
+        }
+      ]
+      ```
+      
+      【2】app/contact/page.tsx を作成しました
+      
+      （完全なNext.jsコンポーネントコード）
+      
+      🔧 次のステップ:
+      （テスト手順の詳細）
+  
+  example_2:
+    title: "about.yaml がない場合（対話的）"
+    user_input: "お問い合わせフォームを作成して"
+    
+    ai_response_step_1: |
+      お問い合わせフォームを作成します。以下の情報を教えてください：
+      
+      1. サイトID（英小文字・数字・ハイフン、例: yourcompany）
+      2. 会社名（例: 株式会社〇〇）
+      3. 通知メールアドレス（例: info@example.com）
+      4. 必要なフォームフィールドは何ですか？
+         デフォルト: 名前、メール、会社名、電話番号、お問い合わせ内容
+         （デフォルトでよければ「デフォルトで」と回答）
+    
+    user_reply: |
+      1. mediaproof
+      2. 株式会社メディアプルーフ
+      3. rinnari777@gmail.com
+      4. デフォルトで
+    
+    ai_output: |
+      （example_1 と同様の出力）
+
+# =============================================================================
+# トラブルシューティング
+# =============================================================================
+troubleshooting:
+  issue_1:
+    problem: "フォームが送信できない"
+    symptoms:
+      - "送信ボタンを押しても反応しない"
+      - "コンソールにエラーが表示される"
+    solutions:
+      - "ブラウザの開発者ツール（F12）でコンソールエラーを確認"
+      - "サイトIDが正しく設定されているか確認（initializeFormHandler内）"
+      - "FormHandler SDKが正しく読み込まれているか確認（Script タグ）"
+      - "許可ドメインが管理画面に登録されているか確認"
+  
+  issue_2:
+    problem: "メールが届かない"
+    symptoms:
+      - "フォームは送信できるが、メールが届かない"
+    solutions:
+      - "管理画面の「データ確認」にデータが保存されているか確認"
+      - "adminEmail が正しく設定されているか確認"
+      - "迷惑メールフォルダを確認"
+      - "emailTemplateId が存在するか確認（使用している場合）"
+  
+  issue_3:
+    problem: "CORSエラーが発生する"
+    symptoms:
+      - "ブラウザコンソールに CORS エラーが表示される"
+      - "フォーム送信がブロックされる"
+    solutions:
+      - "管理画面の「許可ドメイン」に現在のドメインが登録されているか確認"
+      - "ドメインは https:// を含む完全なURLで登録（例: https://example.com）"
+      - "開発環境の場合は http://localhost:3000 等も登録が必要"
+
+# =============================================================================
+# 参考ドキュメント
+# =============================================================================
+references:
+  formreadme:
+    location: "FORM実装/FORMREADME.md"
+    description: "Universal Form API の詳細仕様"
+  
+  formtodo:
+    location: "FORM実装/FORMTODO.md"
+    description: "実装チェックリスト"
+  
+  universal_form_api:
+    url: "https://universal-form-api.vercel.app/"
+    description: "管理画面"
+
+# =============================================================================
+# 変更履歴
+# =============================================================================
+changelog:
+  - version: "1.0.0"
+    date: "2025-11-07"
+    changes:
+      - "初回リリース"
+      - "Universal Form API を使用したフォーム実装の自動化"
+      - "5ステップのワークフロー定義"
+      - "about.yaml からの情報抽出に対応"
+      - "管理画面登録用JSON自動生成"
+      - "Next.jsコンポーネント自動生成"
+      - "セキュリティ対策の自動実装"
+
