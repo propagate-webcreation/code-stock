@@ -20,19 +20,27 @@ alwaysApply: true
 - 禁止：激しいアニメーション（無限/点滅/過度な揺れ）・大きな色相ジャンプ。
 - **透明塗りつぶし（outlineのみ）禁止**。hover時も背景は不透明（十分なコントラスト）。
 
-## CTAセクション（コンテンツ構成・厳格）
+## CTAセクション（背景固定＋コンテンツ構成・厳格）
+- **背景画像必須**。`bg-fixed bg-cover bg-center` を必ず付与（スクロール時も背景は固定）。
 - 構成は **タイトル（h2） + 短い一行説明（p） + CTAボタン** のみ。
 - 説明文は**1行**。改行・箇条書き・注意書きは禁止。
 - 禁止：画像/動画/アイコン/装飾要素/フォーム/複数ボタン/リンクの併設。
-- 例（構造例）
-  ```tsx
-  <section className="bg-fixed bg-cover bg-center">
-    <div className="mx-auto max-w-5xl px-6 py-20 text-center text-white">
-      <h2 className="text-3xl md:text-4xl font-bold">まずは無料相談</h2>
-      <p className="mt-3 opacity-90">最短で次の一手へ。担当が24時間以内にご連絡します。</p>
-      <a href="/contact" className="mt-8 inline-flex items-center px-6 py-3 rounded-2xl bg-[var(--accent)] hover:opacity-90 hover:shadow-md transition">
-        <IconMail className="mr-2" aria-hidden /> 無料で相談する
-      </a>
-    </div>
-  </section>
+
+### 構造例
+```tsx
+<section
+  className="bg-fixed bg-cover bg-center"
+  style={{ backgroundImage: "url('/img/cta/bg.jpg')" }}
+>
+  <div className="mx-auto max-w-5xl px-6 py-20 text-center text-white">
+    <h2 className="text-3xl md:text-4xl font-bold">まずは無料相談</h2>
+    <p className="mt-3 opacity-90">最短で次の一手へ。担当が24時間以内にご連絡します。</p>
+    <a
+      href="/contact"
+      className="mt-8 inline-flex items-center px-6 py-3 rounded-2xl bg-[var(--accent)] hover:opacity-90 hover:shadow-md transition"
+    >
+      <IconMail className="mr-2" aria-hidden /> 無料で相談する
+    </a>
+  </div>
+</section>
 
