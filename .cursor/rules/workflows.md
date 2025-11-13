@@ -320,30 +320,127 @@ All generated forms MUST include:
 
 ## 🖼️ Image Fetch Workflow
 
-**実行方法:** `/image-fetch` コマンドを使用してください
+**実行方法:** 3つのコマンドに分けて実行してください
+
+### Commands (v2.1.0)
+1. **`/image-fetch-list`** - Step 1: リスト一括取得
+2. **`/image-select`** - Step 2: AI対話形式での画像選定 ⭐ 重要（重複チェック機能付き）
+3. **`/image-download`** - Step 3: ダウンロード実行 + Step 4: 履歴記録（自動）
+
+**理由:** コマンドを分けることで、Step 2（画像選定）でAIが手を抜かないようにします。
+**v2.1.0:** 重複防止機能により、同じ画像を二重にダウンロードすることを防止します。
 
 ### Context Files
-- `memories/image_fetch_workflow.yaml`
+- `memories/image_fetch_workflow.yaml` （v2.1.0）
+
+### Workflow Overview
+
+#### Command 1: `/image-fetch-list` (Step 1)
+**目的:** Google Drive から画像リストを取得
+
+**実行内容:**
+- OS選択（Mac/Windows）
+- photos と backgrounds のリストを一括取得（1コマンド）
+- `scripts/photos_index.json` と `scripts/backgrounds_index.json` を生成
+
+**Next:** `/image-select` を実行
+
+#### Command 2: `/image-select` (Step 2) ⭐ 最重要
+**目的:** AI対話形式で画像を選定（重複チェック機能付き）
+
+**実行内容:**
+- 必須ファイルを読み込む（photos_index.json, backgrounds_index.json）
+- **重複チェック:** `scripts/prev_selected.json` を確認（存在する場合）
+  - 存在する → 既存ファイルを除外して重複選定を防止
+  - 存在しない → 初回なので除外なし
+- AIが質問: **「どのような画像を選定しますか？」**
+- ユーザーの回答を待つ
+- 回答に基づいて画像を選定（必須ルールに従う + 重複回避）
+- `scripts/selected.json` に保存
+
+**Next:** `/image-download` を実行
+
+#### Command 3: `/image-download` (Step 3 + Step 4)
+**目的:** 選定した画像をダウンロード + 履歴記録
+
+**実行内容:**
+- OS確認（Mac/Windows）
+- `selected.json` に基づいてダウンロード（1コマンド）
+- `public/img/photos/` と `public/img/backgrounds/` に保存
+- **ダウンロード履歴の記録（自動）:**
+  - 初回: `selected.json` を `prev_selected.json` にコピー
+  - 2回目以降: 既存履歴とマージして更新
 
 ### Critical Rules
 
 #### Rule 1: Always Load Workflow File
-When executing image fetch workflow, **always read `memories/image_fetch_workflow.yaml` first**.
+When executing any image fetch command, **always read `memories/image_fetch_workflow.yaml` first**.
 
 This file contains:
 - ✅ Step 0: OS selection (Mac/Windows)
-- ✅ Step 1: Batch fetch image lists from Google Drive
-- ✅ Step 2: Image selection (photos, backgrounds)
-- ✅ Step 3: selected.json validation
-- ✅ Step 4: Image download execution
+- ✅ Step 1: Batch fetch image lists from Google Drive (1 command)
+- ✅ Step 2: AI-interactive image selection (with duplicate prevention)
+- ✅ Step 3: Image download execution (1 command, photos + backgrounds)
+- ✅ Step 4: Download history recording (automatic)
 
-#### Rule 2: OS Selection (CRITICAL)
-- 🚨 **MUST** ask user for OS (Mac or Windows) at the beginning
+#### Rule 2: Execute Commands in Order
+🚨 **MUST** execute commands in this order:
+1. `/image-fetch-list` (リスト取得)
+2. `/image-select` (画像選定)
+3. `/image-download` (ダウンロード)
+
+**Do NOT skip steps or execute out of order.**
+
+#### Rule 3: OS Selection (CRITICAL)
+- 🚨 **MUST** ask user for OS (Mac or Windows) in `/image-fetch-list` and `/image-download`
 - Use OS-specific commands:
   - Mac/Linux: bash commands
   - Windows: PowerShell commands
 
-#### Rule 3: Filename Exact Match (🚨 CRITICAL)
+#### Rule 4: AI-Interactive Selection (`/image-select` - 🚨 CRITICAL)
+**This command is designed to prevent AI from cutting corners:**
+
+**AI's Role:**
+1. **Check for duplicate prevention (FIRST STEP):**
+   - Read `scripts/prev_selected.json` if it exists
+   - If exists: Load previously downloaded files to exclude from selection
+   - If not exists: Initial selection, no exclusions needed
+
+2. **Read required files using sequential browsing (NOT grep search):**
+   - **❌ FORBIDDEN: Using grep to filter photos_index.json**
+   - **✅ REQUIRED: Sequential reading with offset/limit**
+   - **Dynamic batching**: 250 lines per batch, calculate required batches
+   - Process:
+     1. Check total lines (e.g., 935 lines)
+     2. Calculate batches: `ceil(total_lines ÷ 250)` (e.g., ceil(935÷250) = 4 batches)
+     3. Read each batch:
+        - Batch 1: offset=1,           limit=250
+        - Batch 2: offset=251,         limit=250
+        - Batch N: offset=(N-1)*250+1, limit=250 or remaining lines
+   - `scripts/backgrounds_index.json` - read entirely (typically small)
+   - User-specified YAML files (about.yaml, design.yaml, etc.)
+
+3. **Ask user:** "どのような画像を選定しますか？"
+
+4. **Wait for user response** (examples below)
+
+5. **Execute selection carefully** based on user's requirements and following CRITICAL rules
+   - **Exclude files already in prev_selected.json** (if exists)
+
+**User Response Examples:**
+- "about.yaml の要件に合う写真をお願いします"
+- "〇〇セクションに合うような画像"
+- "ヒーローセクション用の画像を選んでください"
+- "design.yaml に基づいて背景素材を選定してください"
+
+**Why grep is forbidden:**
+- Grep filtering causes 80% of photos to be missed (747 out of 933 photos)
+- Keywords like "media-", "publishing-", "library-", "research-" are overlooked
+- Sequential reading ensures ALL photos are reviewed
+
+#### Rule 5: Filename Exact Match (🚨 CRITICAL - Prevents Command Errors)
+**These rules are CRITICAL to prevent `/image-download` command errors:**
+
 **Absolute rules for filename handling:**
 - 🚨 Read *_index.json files completely as JSON arrays
 - 🚨 Copy each filename exactly as-is (do NOT modify even 1 character)
@@ -355,19 +452,86 @@ This file contains:
 - ❌ Constructing filenames
 - ❌ Modifying filenames in any way
 
-#### Rule 4: Structured JSON Output
+**Reason:** If filenames are incorrect, `/image-download` command will fail with errors.
+
+#### Rule 6: Structured JSON Output (🚨 CRITICAL - Prevents Command Errors)
+**These rules are CRITICAL to prevent `/image-download` command errors:**
+
 - Output format: `{ "photos": [...], "backgrounds": [...], "illusts": [] }`
 - If selected.json exists, read it and update only the relevant key
 - Preserve other keys unchanged
-- No explanations, code blocks, or comments
+- **No explanations, code blocks, or comments** (pure JSON only)
 
-#### Rule 5: Exclusion Rules
+**Reason:** If JSON format is incorrect, `/image-download` command will fail with errors.
+
+#### Rule 7: Exclusion Rules
 - Exclude filenames containing ", " (comma + space)
 - Exclude filenames with special characters (comma, semicolon, etc.)
+- **Exclude files already in `scripts/prev_selected.json`** (duplicate prevention)
+
+#### Rule 8: Download History Recording & Cleanup (🚨 AUTOMATIC in `/image-download`)
+**After successful download, automatically record history and clean up:**
+
+**Process:**
+1. Check if `scripts/prev_selected.json` exists
+2. If NOT exists (initial run):
+   - Copy: `cp scripts/selected.json scripts/prev_selected.json`
+   - Delete: `rm scripts/selected.json`
+   - Output: "✅ ダウンロード履歴を記録しました（初回）"
+   - Output: "📝 selected.json を削除しました（次回は新規選定が必要）"
+3. If exists (subsequent runs):
+   - Merge: Combine existing history with new downloads
+   - Update: `prev_selected.json` with cumulative record
+   - Delete: `rm scripts/selected.json`
+   - Output: "✅ ダウンロード履歴を更新（累計: N件）"
+   - Output: "📝 selected.json を削除しました（次回は新規選定が必要）"
+
+**Commands:**
+- Mac/Linux: Use `cp` + `rm` for initial, Node.js merge script + `rm` for subsequent
+- Windows: Use `Copy-Item` + `Remove-Item` for initial, Node.js merge script + `Remove-Item` for subsequent
+
+**Why important:**
+- Prevents downloading the same image twice
+- Saves storage and bandwidth
+- Enables automatic duplicate detection in future selections
+- **Deletes `selected.json` to prevent accidental re-downloads with old selections**
+- Forces fresh selection on next run
 
 ### Background Filename Pattern
 Backgrounds use structured naming:
 `bg--vibe--pattern_type--repeatability--palette--brightness--contrast--busyness--gradient_axis--size.ext`
 
 Example: `bg--simple--gradient--non-tile--warm--light--mid--calm--vertical--1920x1080.png`
+
+### Complete Workflow Example (v2.1.0)
+
+```
+User: /image-fetch-list
+AI: [Step 1 実行] ✅ リスト取得完了
+
+User: /image-select
+AI: [重複チェック] scripts/prev_selected.json の存在確認
+    → 存在しない → 初回選定なので除外なし
+AI: どのような画像を選定しますか？
+User: about.yaml の要件に合う写真をお願いします
+AI: [Step 2 実行] ✅ 画像選定完了
+
+User: /image-download
+AI: [Step 3 実行] ✅ ダウンロード完了
+AI: [Step 4 実行] ✅ ダウンロード履歴を記録（初回）
+```
+
+**2回目以降の実行:**
+```
+User: /image-select
+AI: [重複チェック] scripts/prev_selected.json を読み込み
+    → 既存15件を除外して新規ファイルのみ選定
+AI: どのような画像を選定しますか？
+User: 追加で〇〇セクション用の画像をお願いします
+AI: [Step 2 実行] ✅ 画像選定完了（新規5件のみ）
+
+User: /image-download
+AI: [Step 3 実行] ✅ ダウンロード完了（新規5件）
+AI: [Step 4 実行] ✅ ダウンロード履歴を更新（累計: 20件）
+```
 
