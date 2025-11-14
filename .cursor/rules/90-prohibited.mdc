@@ -23,3 +23,4 @@ alwaysApply: true
 - ページ固有のCTAコンポーネント作成（例：CTAHome.tsx / CTAAbout.tsx）
 - 共有CTA（app/components/shared/CTA.tsx）の複製・派生・上書き
 - ホームのヒーロー直下セクションの見出しスタイルと異なる見出しスタイルを新規/修正で混在させること
+- CTAセクションでのオーバーレイ使用（半透明レイヤー、linear-gradientの被せ、`before/after` 疑似要素による覆い、`bg-black/*` や `opacity-*` による暗幕等）
