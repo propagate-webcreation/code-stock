@@ -42,6 +42,8 @@
 - Each redirect's `source` must be unique
 
 ### SEO & Canonical
+- Read all pages (app/**/page.tsx) + all components (app/components/**/*.tsx) + layout.tsx
+- Integrate with about.yaml if exists (implementation code is primary, about.yaml is supplementary)
 - Generate title (28-32 characters), description (90-120 characters), keywords (5 keywords)
 - Automatically write to app/layout.tsx
 - Set alternates.canonical to https://{WWW_DOMAIN}
@@ -57,7 +59,9 @@
 3. Normalize domains (lowercase, remove protocol, etc.)
 4. Generate vercel.json using pattern_B (1 redirect only)
 5. Create vercel.json using write tool
-6. Generate SEO information (optional, if about.yaml exists)
-7. Write metadata + canonical to app/layout.tsx (optional)
-8. Output completion report
+6. Read all pages + all components + layout.tsx (required)
+7. Read about.yaml if exists (optional, integrate with implementation code)
+8. Generate SEO information based on actual site content
+9. Write metadata + canonical to app/layout.tsx (optional)
+10. Output completion report
 

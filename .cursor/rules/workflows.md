@@ -101,7 +101,7 @@ This file contains:
 3. **Completion report + SEO info generation + Auto implementation**
    - ✅ Stage 1: Create vercel.json using write tool
    - ✅ Stage 2: Output completion report
-   - ✅ Stage 3: Generate SEO information (optional, only if about.yaml exists)
+   - ✅ Stage 3: Generate SEO information (read all pages + all components, integrate with about.yaml if exists)
    - ✅ Stage 4: Automatically write metadata to layout.tsx (optional)
 
 4. **Domain Normalization (Required Processing)**
@@ -121,10 +121,22 @@ This file contains:
 ### SEO Information Generation and Auto Implementation
 When connecting domain, generate optimized SEO information (keywords, title, description) and automatically write to app/layout.tsx.
 
-**Information Source Priority:**
-1. about.yaml (site configuration sheet) ← Top priority
-2. page.tsx, components, layout.tsx (code files) ← Fallback
-3. Existing metadata (minimum fallback) ← Last resort
+**Information Source Strategy:**
+🚨 **Important**: At domain connection time, the site always exists, so always read the implementation code.
+
+**Priority 1 (Recommended):**
+- All pages (app/**/page.tsx) - Required
+- All components (app/components/**/*.tsx) - Required
+- layout.tsx - Required
+- about.yaml - Optional (if exists, integrate with implementation code)
+- **Implementation code is primary, about.yaml is supplementary**
+
+**Priority 2 (Fallback):**
+- All pages + All components + layout.tsx only (no about.yaml)
+- Only difference from Priority 1 is the absence of about.yaml
+
+**Priority 3 (Last resort):**
+- Existing metadata (minimum fallback) - Only if site is unreadable (rare)
 
 **Generated Content:**
 - Perform market analysis and select search keywords (5 keywords)

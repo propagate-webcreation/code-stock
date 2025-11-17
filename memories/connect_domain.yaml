@@ -7,8 +7,8 @@
 # ⚠️ YAML外のことは実行・追加・推測しないこと
 #
 # Priority: CRITICAL
-# Version: 1.4
-# Last Updated: 2025-11-04
+# Version: 1.5
+# Last Updated: 2025-11-17
 #
 # ==============================================================================
 
@@ -16,7 +16,7 @@ metadata:
   priority: CRITICAL
   enforcement: MANDATORY
   violation_action: STOP_AND_FOLLOW_YAML
-  version: "1.4"
+  version: "1.5"
   
 # ------------------------------------------------------------------------------
 # トリガー条件（これらのキーワードが出たら必ずこのワークフローを実行）
@@ -588,15 +588,36 @@ workflow:
       - 将来的なSEO対策ワークフローへの導線となる
     
     action: |
-      1. 情報源の優先順位に従ってファイルを読み込み
-      2. 抽出した情報を基に市場分析を行い
-      3. 最適化されたSEO情報（キーワード、タイトル、メタディスクリプション）を生成する
+      1. サイトの実装コードを読み込み（必須）
+         - 全ページ（app/**/page.tsx）を読み込み
+         - 全コンポーネント（app/components/**/*.tsx）を読み込み
+         - layout.tsx を読み込み
+      2. about.yaml が存在する場合は追加で読み込み、実装コードと統合
+      3. 全ページのコンテンツを分析し、サイト全体のテーマとキーワードを抽出
+      4. 抽出した情報を基に市場分析を行い
+      5. 最適化されたSEO情報（キーワード、タイトル、メタディスクリプション）を生成する
+      
+      注意: ドメイン接続時点でサイトは必ず存在するため、サイトのみを読み込むことはない
     
     input:
       priority_1:
-        name: "about.yaml（サイト構成シート）"
-        location: "プロジェクトルート/about.yaml"
-        reason: "構造化されており、最も情報が豊富"
+        name: "全ページ + 全コンポーネント + about.yaml（実装コード + サイト構成シート）"
+        locations:
+          - "app/**/page.tsx（全ページ）- 必須"
+          - "app/components/**/*.tsx（全コンポーネント）- 必須"
+          - "app/layout.tsx - 必須"
+          - "プロジェクトルート/about.yaml - オプション（存在する場合）"
+        reason: "サイトの実装コードから実際のコンテンツを確認し、about.yamlがあればサイト構造と意図も統合。実装コードが主、about.yamlは補助"
+        
+        reading_strategy: |
+          1. 全ページファイル（app/**/page.tsx）を読み込み、実際のコンテンツを確認（必須）
+          2. 全コンポーネント（app/components/**/*.tsx）を読み込み、詳細な表現を把握（必須）
+          3. layout.tsx を読み込み、サイト全体の設定を確認（必須）
+          4. about.yaml が存在する場合は読み込み、サイト構造と意図を把握（オプション）
+          5. 実装コードから抽出した情報を主とし、about.yaml の情報で補完
+          6. 実際に使用されている表現・キーワードを最優先
+          7. サイト全体のテーマとページごとの特徴を分析
+          8. 最適なSEO情報を生成
       
       ai_usage_rules: |
         about.yaml の ai_usage セクションに従う：
@@ -632,12 +653,21 @@ workflow:
         services: "site.pages で id: business のもの"
       
       priority_2:
-        name: "page.tsx, components, layout.tsx（コードファイル）"
+        name: "全ページ + 全コンポーネント + layout.tsx のみ（実装コードのみ）"
         locations:
-          - "app/page.tsx"
-          - "app/components/*.tsx"
-          - "app/layout.tsx"
-        reason: "about.yamlがない場合のfallback"
+          - "app/**/page.tsx（全ページ）- 必須"
+          - "app/components/**/*.tsx（全コンポーネント）- 必須"
+          - "app/layout.tsx - 必須"
+        reason: "about.yamlがない場合。サイトの実装コードのみから情報を抽出してSEO情報を生成"
+        note: "priority_1 との違いは about.yaml の有無のみ。サイトの読み込みは同じ"
+        
+        reading_strategy: |
+          1. 全ページファイル（app/**/page.tsx）を読み込み、実際のコンテンツを確認
+          2. 全コンポーネント（app/components/**/*.tsx）を読み込み、詳細な表現を把握
+          3. layout.tsx を読み込み、サイト全体の設定を確認
+          4. 各ページのh1, h2, 主要テキストを抽出
+          5. サイト全体のテーマ・キーワードを特定
+          6. 実装コードのみから最適なSEO情報を生成
         
         extraction_rules:
           company_name:
@@ -729,10 +759,13 @@ workflow:
           - 改善提案を生成
       
       fallback_strategy: |
-        優先順位1（about.yaml）→ 優先順位2（コードファイル）→ 優先順位3（既存metadata）
-        の順で試行し、最初に読み取れた情報源を使用する。
+        ドメイン接続時点でサイトは必ず存在するため、以下の順で処理：
         
-        すべて読み取れない場合のみ、step_5 をスキップする。
+        1. サイトの実装コード（全ページ + 全コンポーネント + layout.tsx）を読み込み（必須）
+        2. about.yaml が存在する場合は追加で読み込み、実装コードと統合（オプション）
+        3. 既存 metadata がある場合は参考情報として使用（priority_3）
+        
+        サイトが読み取れない場合のみ、step_5 をスキップする（通常は発生しない）。
     
     # 市場分析ルール
     market_analysis:
@@ -869,10 +902,12 @@ workflow:
       ⚠️ 注意: keywords メタタグは廃止されましたが、記録として残しています。
     
     execution_flow: |
-      1. about.yaml が読める → about.yaml から情報抽出
-      2. about.yaml がない → page.tsx, components, layout.tsx から情報抽出
-      3. コードも読めない → 既存 metadata から情報抽出・改善提案
+      1. サイトの実装コード（全ページ + 全コンポーネント + layout.tsx）を読み込み（必須）
+      2. about.yaml が存在する場合は追加で読み込み、実装コードと統合
+      3. サイトが読めない場合（通常は発生しない） → 既存 metadata から情報抽出・改善提案
       4. すべて読めない → このステップをスキップ（エラーなし）
+      
+      注意: ドメイン接続時点でサイトは必ず存在するため、通常は1→2の流れで処理される
     
     if_no_source_available: |
       すべての情報源（about.yaml, コードファイル, metadata）が読み取れない場合：
@@ -1081,14 +1116,17 @@ usage_examples:
     
     expected_behavior: |
       1. about.yaml を探す → 見つからない
-      2. page.tsx, components, layout.tsx を読み込む
-      3. コードから情報を抽出：
+      2. 全ページ（app/**/page.tsx）、全コンポーネント（app/components/**/*.tsx）、layout.tsx を読み込む
+      3. 全ページのコンテンツを分析し、サイト全体のテーマとキーワードを抽出：
          - company_name: layout.tsx の metadata.title から抽出
-         - service_description: page.tsx の hero セクションから抽出
+         - service_description: 各ページの hero セクションから抽出
          - service_area: Footer コンポーネントの住所から抽出
-         - services: Navigation メニューから抽出
-      4. 市場分析を行い、SEO情報を生成
-      5. 通常通り3段出力
+         - services: Navigation メニュー + 各ページのコンテンツから抽出
+         - page_themes: 各ページのh1, h2から主要テーマを抽出
+         - keywords: サイト全体で頻出する用語を分析
+      4. サイト全体の構造とコンテンツを統合して市場分析を行う
+      5. 実際のコンテンツに基づいた正確なSEO情報を生成
+      6. 通常通り4段出力（vercel.json → 完了報告 → SEO情報 → layout.tsx書き込み）
     
     expected_output: |
       {
@@ -1110,7 +1148,7 @@ usage_examples:
       1. Vercel にデプロイ...
       
       📊 生成したSEO情報:
-      （※ page.tsx と components から抽出した情報を基に生成）
+      （※ 全ページ（app/**/page.tsx）と全コンポーネント（app/components/**/*.tsx）から抽出した情報を基に生成）
       
       【検索キーワード（5語）】
       1. 校閲サービス 東京（検索ボリューム: 中、競合: Mid）
@@ -1141,8 +1179,9 @@ usage_examples:
       💡 Google提出ワークフローで openGraph, twitter も追加できます。
     
     note: |
-      about.yamlがなくても、コードから情報を抽出してSEO情報を生成し、
+      about.yamlがなくても、全ページと全コンポーネントから情報を抽出してSEO情報を生成し、
       layout.tsx に自動書き込みできる。
+      サイト全体のコンテンツを分析することで、より正確で具体的なSEO情報を生成できる。
       優先順位2のfallbackが機能する例。
   
   example_3:
@@ -1442,6 +1481,19 @@ troubleshooting:
 # ==============================================================================
 
 changelog:
+  v1.5:
+    date: "2025-11-17"
+    changes:
+      - "SEO情報生成: サイトの実装コードを必須読み込みに変更"
+      - "priority_1: 全ページ + 全コンポーネント + layout.tsx（必須）+ about.yaml（オプション）"
+      - "priority_2: 全ページ + 全コンポーネント + layout.tsx のみ（about.yamlなし）"
+      - "重要な変更: サイトが主、about.yamlは補助（ドメイン接続時点でサイトは必ず存在）"
+      - "サイト全体のコンテンツを分析し、より正確なSEO情報を生成"
+      - "各ページのh1, h2, 主要テキストを抽出してキーワード分析"
+      - "実際に使用されている表現・キーワードを最優先"
+      - "reading_strategy を追加（8ステップの詳細な読み込み戦略）"
+      - "fallback_strategy を修正（サイト必須、about.yamlオプション）"
+  
   v1.4:
     date: "2025-11-04"
     changes:
