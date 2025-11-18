@@ -72,3 +72,59 @@ alwaysApply: true
 - セクション上下: py-12以上（主要はpy-20）。
 - 横幅: max-w-5xl mx-auto px-6 を基本に統一。
 - 整列: grid/flex + gap-*、画像とテキストは中央またはベースラインで揃える。
+
+## 左右レイアウト（高さ揃え）
+- 2カラム以上の横並び要素は**高さを揃える**こと
+- 親：`grid`/`flex` いずれも `items-stretch` を基本とする
+- 子：コンテナ（カード/ボックス）は `h-full`、縦積み要素は `flex flex-col h-full`
+- 禁止：片側のみの余白や高さ指定で見かけ上そろえる実装
+
+### 推奨クラス例
+- Grid: `grid md:grid-cols-2 gap-10 items-stretch`
+- Flex: `flex md:flex-row gap-10 items-stretch`
+- 子要素: `h-full flex flex-col`
+
+## 左右レイアウト（画像＋テキストの高さ揃え・厳守）
+- 片側が画像・片側がテキストの場合も**両カラムの高さを揃える**
+- 親：`grid` または `flex` の **`items-stretch`** を必須
+- 子（画像側/テキスト側）：どちらも **`h-full`** を付与
+- テキスト側は **`flex flex-col h-full`** とし、必要ならCTA等を `mt-auto` で下寄せ
+- 画像は **ラッパーを `relative h-full`** にし、`<Image fill className="object-cover" />` で縦方向もフィット
+- SPでは比率確保のため **`h-64` などの最小高さ**を与え、MD以降で `h-full` に昇格させる
+- 禁止：片側だけ固定高さ/余白で見かけ上そろえる実装、`object-contain` による余白残り
+
+### 推奨クラス（Grid）
+- 親：`grid md:grid-cols-2 gap-10 items-stretch`
+- 画像側：`relative h-64 md:h-full`
+- テキスト側：`flex flex-col h-full`
+
+### 実装例（Next/Image）
+```tsx
+<section className="grid md:grid-cols-2 gap-10 items-stretch">
+  {/* 画像側 */}
+  <div className="relative h-64 md:h-full">
+    <Image
+      src="/img/photos/sample.jpg"
+      alt="セクション画像"
+      fill
+      sizes="(min-width:768px) 50vw, 100vw"
+      className="object-cover"
+      priority
+    />
+  </div>
+
+  {/* テキスト側 */}
+  <div className="flex flex-col h-full">
+    <h2 className="text-[24px] md:text-[32px] font-bold">セクションタイトル</h2>
+    <p className="mt-4 text-[12px] md:text-[16px] leading-relaxed">
+      本文本文本文…
+    </p>
+    <a
+      href="/contact"
+      className="mt-auto inline-flex items-center rounded-2xl px-5 py-3 font-medium
+                 bg-[var(--btn-primary)] text-white hover:opacity-90 hover:shadow-md transition"
+    >
+      <IconChevronRight className="mr-2" aria-hidden /> くわしく見る
+    </a>
+  </div>
+</section>
