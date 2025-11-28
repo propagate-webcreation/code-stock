@@ -1,5 +1,6 @@
 ---
 description: "モバイル(320/375/425px)向けレスポンシブ実装ルール"
+
 globs:
   - "app/**/*.{tsx,jsx}"
   - "components/**/*.{tsx,jsx}"
