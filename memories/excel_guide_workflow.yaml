@@ -1,12 +1,12 @@
 # Excel Site Guide Generation
 
-pentagonディレクトリの3つのファイル（README、generate_site_guide.py、config_sample.yaml）を参照し、
+Site-Fixディレクトリの3つのファイル（README、generate_site_guide.py、config_sample.yaml）を参照し、
 以下の手順でサイト構成ガイドのExcelファイルを生成してください。
 
 ## 手順
 
-1. pentagon/README (3).md を読み、ツールの使い方を理解する
-2. pentagon/config_sample (2).yaml を読み、config.yamlの書き方を理解する
+1. Site-Fix/README (3).md を読み、ツールの使い方を理解する
+2. Site-Fix/config_sample (2).yaml を読み、config.yamlの書き方を理解する
 3. app/components/shared/Header.tsx を確認し、ナビゲーションのリンク順でページ順を決定
 4. app/components/shared/Footer.tsx を確認し、フッターの内容を把握
 5. 各ページの page.tsx を確認し、コンポーネントの並び順を把握：
@@ -16,14 +16,72 @@ pentagonディレクトリの3つのファイル（README、generate_site_guide.
    - app/contact/page.tsx
    - その他存在するページ
 6. 各コンポーネントファイル（.tsx）の内容を読み込み、テキスト要素を抽出
-7. ページ順・セクション順に従って pentagon/config.yaml を作成
-8. 以下のコマンドを実行してExcelを生成：
+7. ページ順・セクション順に従って Site-Fix/config.yaml を作成
+   **🚨 重要: 既存の config.yaml があっても、必ず現在のサイトファイルから新規作成（上書き）する**
+   **🚨 ファイル書き込みは必ずターミナルコマンドを使用する（Cursorのwriteツールは使用禁止）**
+   ```bash
+   cat > Site-Fix/config.yaml << 'EOF'
+   # config.yamlの内容
+   EOF
+   ```
+8. Excelファイルを生成（既存ファイル対応）
 
-```bash
-cd pentagon && python "generate_site_guide (5).py" config.yaml output
+## Excelファイル生成ルール（重要）
+
+1. `Site-Fix/input/` に既存の `.xlsx` ファイルがあるか確認
+2. **既存ファイルがある場合:**
+   - そのExcelファイルを開く
+   - 「サイト構成ガイド_YYYYMMDD_HHMMSS」という新しいシートを**一番左（先頭）**に追加
+   - 既存のシートは削除せず保持（履歴として残る）
+   - 新しいシートにサイト構成ガイドの内容を書き込む
+3. **既存ファイルがない場合:**
+   - 新規Excelファイルを `Site-Fix/input/` に作成
+
+## Pythonスクリプト例
+
+```python
+import openpyxl
+import os
+import glob
+from datetime import datetime
+
+# 既存ファイルを検索
+input_dir = 'Site-Fix/input'
+existing_files = glob.glob(os.path.join(input_dir, '*.xlsx'))
+existing_files = [f for f in existing_files if not os.path.basename(f).startswith('~$')]
+
+# タイムスタンプを生成
+timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+sheet_name = f"サイト構成ガイド_{timestamp}"
+
+if existing_files:
+    # 既存ファイルを開く（最新のもの）
+    existing_files.sort(key=os.path.getmtime, reverse=True)
+    filepath = existing_files[0]
+    wb = openpyxl.load_workbook(filepath)
+    
+    # 新しいシートを作成し、一番左に移動（既存シートは保持）
+    ws = wb.create_sheet(sheet_name, 0)
+else:
+    # 新規ファイルを作成
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "サイト構成ガイド"
+    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+    filepath = os.path.join(input_dir, f'site_guide_{timestamp}.xlsx')
+
+# シートにサイト構成ガイドの内容を書き込む
+# ...
+
+wb.save(filepath)
 ```
 
-## config.yaml の作成ルール
+## config.yaml の作成ルール（必ず新規作成）
+
+**🚨 重要: /excel-guide 実行時は、既存の config.yaml の有無に関わらず、
+必ず現在のサイトファイル（.tsx）からテキストを抽出して config.yaml を新規作成する。**
+
+理由：サイトの内容は随時更新されるため、古い config.yaml を使うと最新の状態が反映されない。
 
 - site_name: 英数字のみ（ファイル名に使用）
 - common_sections: ヘッダー・フッター（全ページ共通）
@@ -40,5 +98,3 @@ cd pentagon && python "generate_site_guide (5).py" config.yaml output
 - ボタン・リンクは ► を先頭につける
 - 箇条書きは ・ を使用
 - サブセクションは ■ を使用
-
-

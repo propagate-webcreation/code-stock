@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-Website Revision Guide Generator v3.0
-サイト構成ガイド自動生成ツール
+Website Revision Guide Generator v3.2
+サイト構成ガイド自動生成ツール（既存ファイル対応版）
 
 【出力の粒度ルール】
 - ページ名：トップページ、記事一覧ページ、このメディアについて、お問い合わせページなど
@@ -13,26 +13,59 @@ Website Revision Guide Generator v3.0
   - 記事のタイトル・カテゴリ・日付・著者・リード文
   - フォームの項目名
   - 注記・補足
+
+【既存ファイル対応】
+- input/ に既存の .xlsx ファイルがある場合、そのファイルに新しいシートを追加
+- 新しいシートは一番左（先頭）に配置
+- 既存のシートは削除せず保持
+- シート名にはタイムスタンプを付与（例：サイト構成ガイド_20251128_160000）
+- 既存ファイルがない場合は新規作成
 """
 
 import os
+import glob
 import yaml
 from datetime import datetime
-from openpyxl import Workbook
+from openpyxl import Workbook, load_workbook
 from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
 
 
-def generate_guide(config_path='config.yaml', output_dir='output'):
-    """サイト構成ガイドを生成"""
+def generate_guide(config_path='config.yaml', input_dir='input'):
+    """サイト構成ガイドを生成（既存ファイル対応）"""
     
     # 設定ファイルを読み込む
     with open(config_path, 'r', encoding='utf-8') as f:
         config = yaml.safe_load(f)
     
-    # 新しいワークブックを作成
-    wb = Workbook()
-    ws = wb.active
-    ws.title = "サイト構成ガイド"
+    # 既存ファイルを検索
+    os.makedirs(input_dir, exist_ok=True)
+    existing_files = glob.glob(os.path.join(input_dir, '*.xlsx'))
+    existing_files = [f for f in existing_files if not os.path.basename(f).startswith('~$')]
+    
+    # タイムスタンプを生成
+    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+    sheet_name = f"サイト構成ガイド_{timestamp}"
+    
+    if existing_files:
+        # 既存ファイルを開く（最新のもの）
+        existing_files.sort(key=os.path.getmtime, reverse=True)
+        filepath = existing_files[0]
+        print(f"✓ 既存ファイルを検出: {filepath}")
+        wb = load_workbook(filepath)
+        
+        # 新しいシートを作成し、一番左（先頭）に配置
+        # 既存のシートは削除せず保持
+        ws = wb.create_sheet(sheet_name, 0)
+        print(f"✓ 新しいシート「{sheet_name}」を先頭に追加")
+    else:
+        # 新規ファイルを作成
+        wb = Workbook()
+        ws = wb.active
+        ws.title = sheet_name
+        safe_site_name = config['site_name'].replace(' ', '_')
+        filepath = os.path.join(input_dir, f'{safe_site_name}_site_guide_{timestamp}.xlsx')
+        print(f"✓ 新規ファイルを作成: {filepath}")
+    
     ws.sheet_view.showGridLines = False
     
     # スタイル定義
@@ -61,8 +94,9 @@ def generate_guide(config_path='config.yaml', output_dir='output'):
     # 修正指示の説明セクション
     instruction_text = """【重要】修正内容のご記入方法について"""
     ws['A3'] = instruction_text
-    ws['A3'].font = Font(size=14, bold=True, color="000000")
-    ws.merge_cells('A3:D3')
+    ws['A3'].font = Font(size=21, bold=True, color="FF0000")  # 赤文字・サイズ1.5倍（14→21）
+    ws.merge_cells('A3:E3')
+    ws.row_dimensions[3].height = 35  # 行の高さも調整
     
     instruction_detail = """修正内容を正しく認識し、スムーズに反映できるよう、
 お手数ですが修正指示は以下の点をご記入くださいますようご協力をお願いいたします。
@@ -86,14 +120,14 @@ def generate_guide(config_path='config.yaml', output_dir='output'):
     ws['A4'] = instruction_detail
     ws['A4'].font = Font(size=11, color="000000")
     ws['A4'].alignment = Alignment(wrap_text=True, vertical='top')
-    ws.merge_cells('A4:D4')
+    ws.merge_cells('A4:E4')
     ws.row_dimensions[4].height = 250
     
     # 空白行
     ws.row_dimensions[5].height = 15
     
     # ヘッダー行（6行目に配置）
-    headers = ['ページ名', 'セクション名', '内容', '修正内容']
+    headers = ['ページ名', 'セクション名', '内容', '修正内容', 'ディレクター確認欄']
     for col_idx, header in enumerate(headers, start=1):
         cell = ws.cell(row=6, column=col_idx)
         cell.value = header
@@ -122,7 +156,7 @@ def generate_guide(config_path='config.yaml', output_dir='output'):
         ws.cell(row=current_row, column=3).value = content
         
         # スタイル適用
-        for col_idx in range(1, 5):
+        for col_idx in range(1, 6):
             cell = ws.cell(row=current_row, column=col_idx)
             cell.border = thin_border
             cell.alignment = Alignment(wrap_text=True, vertical='top')
@@ -198,7 +232,7 @@ def generate_guide(config_path='config.yaml', output_dir='output'):
     # 全体的な修正指示セクション
     ws.cell(row=current_row, column=1).value = "全体的な修正指示・その他のご要望"
     ws.cell(row=current_row, column=1).font = Font(size=14, bold=True, color="000000")
-    ws.merge_cells(start_row=current_row, start_column=1, end_row=current_row, end_column=4)
+    ws.merge_cells(start_row=current_row, start_column=1, end_row=current_row, end_column=5)
     current_row += 1
     
     overall_instruction = """以下の内容をこちらにご記入ください：
@@ -211,6 +245,7 @@ def generate_guide(config_path='config.yaml', output_dir='output'):
     ws.cell(row=current_row, column=1).alignment = Alignment(wrap_text=True, vertical='top')
     ws.cell(row=current_row, column=1).border = thin_border
     ws.cell(row=current_row, column=4).border = thin_border
+    ws.cell(row=current_row, column=5).border = thin_border
     ws.merge_cells(start_row=current_row, start_column=1, end_row=current_row, end_column=3)
     ws.row_dimensions[current_row].height = 100
     
@@ -219,18 +254,11 @@ def generate_guide(config_path='config.yaml', output_dir='output'):
     ws.column_dimensions['B'].width = 30
     ws.column_dimensions['C'].width = 80
     ws.column_dimensions['D'].width = 50
+    ws.column_dimensions['E'].width = 50  # ディレクター確認欄
     
     # 注意: 先頭行固定（freeze_panes）は適用しない
     
     # 保存
-    os.makedirs(output_dir, exist_ok=True)
-    
-    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-    # サイト名を英数字に変換（日本語を除去）
-    safe_site_name = config['site_name'].replace(' ', '_')
-    filename = f"{safe_site_name}_site_guide_{timestamp}.xlsx"
-    filepath = os.path.join(output_dir, filename)
-    
     wb.save(filepath)
     
     print(f"\n✓ 完成！")
@@ -244,14 +272,15 @@ def main():
     import sys
     
     print("=" * 60)
-    print("Website Revision Guide Generator v3.0")
+    print("Website Revision Guide Generator v3.2")
+    print("（既存ファイル対応版）")
     print("=" * 60)
     print()
     
     config_path = sys.argv[1] if len(sys.argv) > 1 else 'config.yaml'
-    output_dir = sys.argv[2] if len(sys.argv) > 2 else 'output'
+    input_dir = sys.argv[2] if len(sys.argv) > 2 else 'input'
     
-    filepath = generate_guide(config_path, output_dir)
+    filepath = generate_guide(config_path, input_dir)
     
     print()
     print("=" * 60)
