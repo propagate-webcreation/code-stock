@@ -33,9 +33,18 @@ from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
 def generate_guide(config_path='config.yaml', input_dir='input'):
     """サイト構成ガイドを生成（既存ファイル対応）"""
     
+    # プロジェクトのルートディレクトリ名を取得（Site-Fixの親ディレクトリ）
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    project_root = os.path.dirname(script_dir)
+    project_name = os.path.basename(project_root)
+    
     # 設定ファイルを読み込む
     with open(config_path, 'r', encoding='utf-8') as f:
         config = yaml.safe_load(f)
+    
+    # site_nameを常にプロジェクト名で上書き（プロジェクト名を優先）
+    config['site_name'] = project_name
+    print(f"✓ プロジェクト名を自動設定: {project_name}")
     
     # 既存ファイルを検索
     os.makedirs(input_dir, exist_ok=True)
