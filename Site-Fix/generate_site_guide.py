@@ -33,18 +33,13 @@ from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
 def generate_guide(config_path='config.yaml', input_dir='input'):
     """サイト構成ガイドを生成（既存ファイル対応）"""
     
-    # プロジェクトのルートディレクトリ名を取得（Site-Fixの親ディレクトリ）
-    script_dir = os.path.dirname(os.path.abspath(__file__))
-    project_root = os.path.dirname(script_dir)
-    project_name = os.path.basename(project_root)
-    
     # 設定ファイルを読み込む
     with open(config_path, 'r', encoding='utf-8') as f:
         config = yaml.safe_load(f)
     
-    # site_nameを常にプロジェクト名で上書き（プロジェクト名を優先）
-    config['site_name'] = project_name
-    print(f"✓ プロジェクト名を自動設定: {project_name}")
+    # site_nameをconfig.yamlから取得
+    site_name = config.get('site_name', 'サイト')
+    print(f"✓ サイト名を設定: {site_name}")
     
     # 既存ファイルを検索
     os.makedirs(input_dir, exist_ok=True)
@@ -71,8 +66,8 @@ def generate_guide(config_path='config.yaml', input_dir='input'):
         wb = Workbook()
         ws = wb.active
         ws.title = sheet_name
-        safe_site_name = config['site_name'].replace(' ', '_')
-        filepath = os.path.join(input_dir, f'{safe_site_name}_site_guide_{timestamp}.xlsx')
+        safe_site_name = site_name.replace(' ', '_')
+        filepath = os.path.join(input_dir, f'{safe_site_name}様_構成シート.xlsx')
         print(f"✓ 新規ファイルを作成: {filepath}")
     
     ws.sheet_view.showGridLines = False
@@ -91,8 +86,8 @@ def generate_guide(config_path='config.yaml', input_dir='input'):
         bottom=Side(style='thin', color='CCCCCC')
     )
     
-    # タイトル行
-    ws['A1'] = f'{config["site_name"]} - サイト構成ガイド'
+    # タイトル行（{先方名}様 - サイト構成ガイド形式）
+    ws['A1'] = f'{site_name}様 - サイト構成ガイド'
     ws['A1'].font = Font(size=18, bold=True, color="000000")
     ws.merge_cells('A1:C1')
     ws.row_dimensions[1].height = 30
