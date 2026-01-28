@@ -620,8 +620,8 @@ All generated code MUST include ESLint suppressions to avoid build errors:
 
 #### Step 6: 統合実装 (🚨 CRITICAL)
 - リファレンスデザインをターゲットに統合
-- **単純なコンテンツ入れ替えではない**
-- プロジェクトのビジュアルスタイルを維持しながらレイアウト原則を適用
+- **必ず `.cursor/rules/24-design-apply-stock.mdc` を読み、そのルールに従って適用する**
+- 保持（Preserve）・採用（Adopt）・適応（Adapt）・禁止事項は 24-design-apply-stock.mdc に一元化
 
 ### Critical Rules
 
@@ -632,7 +632,7 @@ This file contains:
 - ✅ 6-step detailed workflow
 - ✅ Category mapping (Hero, About, Feature, CTA, etc.)
 - ✅ Style mapping (やさしい・ナチュラル, 上品・高級感, etc.)
-- ✅ Integration principles (preserve, adopt, adapt)
+- ✅ Step 6 では 24-design-apply-stock.mdc を参照
 - ✅ Troubleshooting
 
 #### Rule 2: Never Skip User Interaction (Step 4)
@@ -645,30 +645,8 @@ This file contains:
   AI: "候補を5件選出しました。上位2件について..."
   AI: "どちらのスタイルが好みですか？"
 
-#### Rule 3: Integration Principles (🚨 CRITICAL)
-
-**Preserve (保持):**
-- ターゲットの既存コンテンツ（テキスト、画像パス等）
-- プロジェクト全体のカラースキーム
-- ワークスペースルールのフォントスケール
-- 既存のレスポンシブブレークポイント
-
-**Adopt (採用):**
-- リファレンスのレイアウトパターン（grid/flex構造）
-- リファレンスの余白・間隔の比率
-- リファレンスの視覚的階層構造
-
-**Adapt (適応):**
-- 色をプロジェクトのカラーパレットに変換
-- フォントサイズをワークスペースルールに準拠
-- ボタンスタイルをプロジェクト共通に統一
-
-**Forbidden (禁止):**
-- ❌ ターゲットのコンテンツを削除してリファレンスのダミーテキストに置換
-- ❌ プロジェクトのカラースキームを無視
-- ❌ ワークスペースルールのフォントスケールを無視
-- ❌ global.cssの編集
-- ❌ 新しいCSSファイルの作成
+#### Rule 3: Step 6 — Apply Design from Stock Rule (🚨 CRITICAL)
+統合実装時は **必ず `.cursor/rules/24-design-apply-stock.mdc` を参照し、その「保持するもの」「参考から採用するもの」「プロジェクトに合わせて調整するもの」「禁止事項」「実行の流れ」に従う。同一内容の重複ルールはここには記載しない。
 
 #### Rule 4: Index Structure Understanding
 
