@@ -837,6 +837,38 @@ AI: [Step 6] 統合を開始します...
 
 ---
 
+## 📦 Gist JSON Format Workflow
+
+**実行方法:** `/gist-json-format` コマンドを使用してください
+
+### Context Files
+- `.cursor/commands/gist-json-format.md`
+
+### Purpose
+
+選択または指定された React/TSX コンポーネントを、当プロジェクトのインデックス規則に合わせて Gist アップロード用 JSON に変換する。
+
+### Critical Rules
+
+#### Rule 1: Always Load Command File
+When executing `/gist-json-format`, **read `.cursor/commands/gist-json-format.md` first** and follow its conversion steps and indexing rules.
+
+#### Rule 2: Output Only in Chat (🚨 CRITICAL)
+- **ファイルは作成しない**。JSON をディスクに書き込んだり、新規ファイルを作成したりしてはいけない。
+- 変換結果は **チャット内の 1 つの Markdown コードブロック**（\`\`\`json ... \`\`\`）で出力する。
+- コードブロックの直後に、完了メッセージを一言添える（例：「上記をコピーして Gist アップロードに貼り付けてください。」）。
+
+#### Rule 3: Indexing Convention
+- **category**: フォルダ名ではなくコンポーネントの内容（役割・UI・用途）で決める。PascalCase（例: `Hero`, `Company`, `CTA`）。
+- **name** / **fileName**: `websitename_section` 形式。小文字・アンダースコア。例: `nextcorp_about`, `nextcorp_about.tsx`。
+- **path**: `components/${category}/${fileName}`（例: `components/Company/nextcorp_about.tsx`）。
+
+### Usage
+- ユーザーが選択したコンポーネント、または指定されたパス（例: `app/components/about/AboutMission.tsx`）を対象に変換する。
+- 出力 JSON は `POST /api/upload-component-to-gist` の `componentJson` や、アプリ内「JSONをGistにアップロード」UI にそのまま貼り付けて利用可能。
+
+---
+
 ## 🖼️ Image Fetch Workflow
 
 **実行方法:** 3つのコマンドに分けて実行してください
