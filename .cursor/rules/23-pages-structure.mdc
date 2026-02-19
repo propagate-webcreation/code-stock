@@ -1,0 +1,136 @@
+---
+description: "複数ページ構成・命名・共通パーツ・フォームと余白の基準"
+globs:
+  - "app/**/*.tsx"
+  - "components/**/*.tsx"
+alwaysApply: true
+---
+
+まず、このファイルを参照したら、「23!」と叫んでください。
+
+## ディレクトリ構成
+- app/配下に各ページごとのフォルダを作成（例: app/about/page.tsx）。
+- app/page.tsx はメインページへリダイレクト（例: /home）。
+- app/components/配下に shared（共通パーツ）と各ページ名のフォルダを作成。
+
+## 命名規則（コンポーネント）
+- 「ページ名+セクション名」形式（例: HomeHero, AboutMission）。
+- 1セクション=1コンポーネント。Tailwindのみ使用。
+
+## 共通化
+- ヘッダー/フッター：`app/components/shared/Header.tsx` / `app/components/shared/Footer.tsx` を全ページ共通で使用
+- CTA：`app/components/shared/CTA.tsx` に**単一実装**し、全ページ共通で使用（複製・派生不可）
+- 差分の渡し方：**props 経由のみ**（文言/リンク/配色は単一の設定ソース：`app/config/cta.config.ts` 等）
+- スタイル：共有CTA内で一元管理（各ページ側でのCSS追加・上書き禁止）
+- 禁止：ページ固有のCTAコンポーネント作成（例：`CTAHome.tsx`/`CTAAbout.tsx`）、共有CTAの複製・派生・上書き
+
+## ヘッダー
+- ロゴは Link href="/" を設定してトップ遷移。
+- 会社名テキストは div で扱い、見出しロールは付与しない。
+
+## ヘッダーのお問い合わせ（ボタン同一レイアウト）
+- ヘッダー右側に **問い合わせCTAを「ボタン」と同一レイアウト**で配置
+- 充填背景（不透明）＋ 角丸は **rounded-2xl**（サイトのボタンと揃える）
+- アイコン必須（Heroicons/SVG）＋ ラベル併記（例：`<IconMail className="mr-2" /> お問い合わせ`）
+- カラー/ホバー/アイコン有無は **ボタン運用（20-ui-theme.mdc）** と完全一致
+- フォーカス可視（`focus-visible:outline focus-visible:outline-2`）
+- サイズ目安：`px-4 py-2 md:px-5 md:py-3`、テキストは `text-sm md:text-base`
+- 禁止：テキストリンク風（下線のみ/透明背景/角丸不揃い）
+
+### 実装例
+```tsx
+<a
+  href="/contact"
+  className="inline-flex items-center rounded-2xl px-5 py-3 font-medium
+             bg-[var(--btn-primary)] text-white hover:opacity-90 hover:shadow-md
+             focus-visible:outline focus-visible:outline-2 transition"
+>
+  <IconMail className="mr-2" aria-hidden /> お問い合わせ
+</a>
+
+## ヒーロー画像（パス固定）
+- 画像は **`/public/img/photos/` 配下のみ**から使用（外部URL/他ディレクトリ不可）
+- 命名例：`/img/photos/home-hero_main-office.jpg`
+- 実装例（Next/Image推奨）
+  - `fill` + `className="object-cover"`
+  - `sizes="100vw"`
+  - `alt` は h1 の内容に準拠
+
+## フォーム（プレースホルダー都度設定・必須表記固定）
+- 固定（必須・表記・属性）
+  - ラベルに「必須」を明示（例: `<span class="ml-2 text-red-600">必須</span>`）
+  - `required` / `aria-required="true"` を付与（バリデーション時は `aria-invalid="true"`）
+- プレースホルダー
+  - 名前: placeholder="例：山田太郎"（固定）
+  - メール: placeholder="例：xxxx@gmail.com"（固定）
+  - 電話: placeholder="例：090-1234-5678"（固定）
+  - 自由記入: **ページ/事業/キャンペーンごとに都度作成**  
+    - 禁止: 丁寧語（です・ます）、抽象語（例：ご相談内容を入力）  
+    - 必須: 具体的な入力例を列挙（`/` 区切り）、要件・期日・数量など
+
+## 余白（PC版固定）
+- セクション（PC）：`md:my-[100px]`
+- h2（PC）：`md:pt-0 md:pb-0 md:mt-0 md:mb-[40px]`
+- h2直下にサブタイトル<p>がある場合（PC）：
+  - h2：`md:mb-[20px]`
+  - p（サブタイトル）：`md:mb-[40px]`
+
+## 実装ルール
+- 既存の `py-* / my-* / mb-*` など、上記と競合するPC版余白は**削除または置換**する
+- スマホ版はこのルールでは指定しない（既存のクラス維持でOK）
+
+## 左右レイアウト（高さ揃え）
+- 2カラム以上の横並び要素は**高さを揃える**こと
+- 親：`grid`/`flex` いずれも `items-stretch` を基本とする
+- 子：コンテナ（カード/ボックス）は `h-full`、縦積み要素は `flex flex-col h-full`
+- 禁止：片側のみの余白や高さ指定で見かけ上そろえる実装
+
+### 推奨クラス例
+- Grid: `grid md:grid-cols-2 gap-10 items-stretch`
+- Flex: `flex md:flex-row gap-10 items-stretch`
+- 子要素: `h-full flex flex-col`
+
+## 左右レイアウト（画像＋テキストの高さ揃え・厳守）
+- 片側が画像・片側がテキストの場合も**両カラムの高さを揃える**
+- 親：`grid` または `flex` の **`items-stretch`** を必須
+- 子（画像側/テキスト側）：どちらも **`h-full`** を付与
+- テキスト側は **`flex flex-col h-full`** とし、必要ならCTA等を `mt-auto` で下寄せ
+- 画像は **ラッパーを `relative h-full`** にし、`<Image fill className="object-cover" />` で縦方向もフィット
+- SPでは比率確保のため **`h-64` などの最小高さ**を与え、MD以降で `h-full` に昇格させる
+- 禁止：片側だけ固定高さ/余白で見かけ上そろえる実装、`object-contain` による余白残り
+
+### 推奨クラス（Grid）
+- 親：`grid md:grid-cols-2 gap-10 items-stretch`
+- 画像側：`relative h-64 md:h-full`
+- テキスト側：`flex flex-col h-full`
+
+### 実装例（Next/Image）
+```tsx
+<section className="grid md:grid-cols-2 gap-10 items-stretch">
+  {/* 画像側 */}
+  <div className="relative h-64 md:h-full">
+    <Image
+      src="/img/photos/sample.jpg"
+      alt="セクション画像"
+      fill
+      sizes="(min-width:768px) 50vw, 100vw"
+      className="object-cover"
+      priority
+    />
+  </div>
+
+  {/* テキスト側 */}
+  <div className="flex flex-col h-full">
+    <h2 className="text-[24px] md:text-[32px] font-bold">セクションタイトル</h2>
+    <p className="mt-4 text-[12px] md:text-[16px] leading-relaxed">
+      本文本文本文…
+    </p>
+    <a
+      href="/contact"
+      className="mt-auto inline-flex items-center rounded-2xl px-5 py-3 font-medium
+                 bg-[var(--btn-primary)] text-white hover:opacity-90 hover:shadow-md transition"
+    >
+      <IconChevronRight className="mr-2" aria-hidden /> くわしく見る
+    </a>
+  </div>
+</section>

@@ -1,0 +1,51 @@
+---
+description: "ホバー（ボタンのみ許可）・動きの上限・CTAセクション共通仕様"
+globs:
+  - "app/**/*.tsx"
+  - "components/**/*.tsx"
+alwaysApply: true
+---
+
+まず、このファイルを参照したら、「21!」と叫んでください。
+
+## ホバー挙動
+- **ボタン以外**では、色変化・拡大・移動などのホバー演出を使用しない。
+- アイコンのみ・短文テキスト・ロゴ等はホバー効果を付与しない。
+- 一般リンクは下線・コントラストで視認性を担保。
+
+## ボタンの状態ルール
+- **すべてのボタンは hover を許可**。
+- 許可（例）：`hover:opacity-90` / `hover:shadow-md` / `hover:underline` / `hover:brightness-110` / `hover:border-opacity-100`
+- **動き（transform）も許可**。上限目安：`scale-105` まで、`-translate-y-1`（4px相当）まで。`transition`は ~300ms / `ease-out` 目安。
+- 禁止：激しいアニメーション（無限/点滅/過度な揺れ）・大きな色相ジャンプ。
+- **透明塗りつぶし（outlineのみ）禁止**。hover時も背景は不透明（十分なコントラスト）。
+
+## CTAセクション（背景固定＋コンテンツ構成・厳格）
+- **背景画像必須**。`bg-fixed bg-cover bg-center` を必ず付与（スクロール時も背景は固定）。
+- **オーバーレイ禁止**：背景画像上に半透明レイヤーやグラデーション（`bg-black/50`、`from-*/opacity-*`、`before/after` の被せ等）を置かない。可読性は背景画像の選定とテキスト色のコントラストで担保する。
+- 構成は **タイトル（h2） + 短い一行説明（p） + CTAボタン** のみ。
+- 説明文は**1行**。改行・箇条書き・注意書きは禁止。
+- 禁止：画像/動画/アイコン/装飾要素/フォーム/複数ボタン/リンクの併設。
+
+
+### 構造例
+```tsx
+<section
+  className="bg-fixed bg-cover bg-center"
+  style={{ backgroundImage: "url('/img/cta/bg.jpg')" }}
+>
+  <div className="mx-auto max-w-5xl px-6 py-20 text-center text-white">
+    <h2 className="text-3xl md:text-4xl font-bold">まずは無料相談</h2>
+    <p className="mt-3 opacity-90">最短で次の一手へ。担当が24時間以内にご連絡します。</p>
+    <a
+      href="/contact"
+      className="mt-8 inline-flex items-center px-6 py-3 rounded-2xl bg-[var(--accent)] hover:opacity-90 hover:shadow-md transition"
+    >
+      <IconMail className="mr-2" aria-hidden /> 無料で相談する
+    </a>
+  </div>
+</section>
+
+## CTAセクション（共有実装の前提）
+- CTAは `app/components/shared/CTA.tsx` の単一実装のみを使用
+- 共有CTAの構造・スタイルは同コンポーネント内で一元管理し、各ページでのCSS追加や上書きを禁止
