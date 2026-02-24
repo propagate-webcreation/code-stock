@@ -9,6 +9,7 @@
     "start": "next start",
     "lint": "eslint",
     "setup-font-project": "node scripts/setup-font-project.js",
+    "domain-connect": "node scripts/domain-connect.js",
     "setup-fonts": "node scripts/setup-fonts.js",
     "setup-fonts:kawaii": "npm run setup-fonts kawaii",
     "setup-fonts:elegant": "npm run setup-fonts elegant",
